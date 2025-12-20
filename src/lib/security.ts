@@ -144,7 +144,7 @@ export async function storeCSRFToken(token: string): Promise<void> {
 }
 
 // Security headers middleware
-export function addSecurityHeaders(response: NextResponse): NextResponse {
+export function addSecurityHeaders(request: NextRequest, response: NextResponse): NextResponse {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
@@ -164,7 +164,14 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  
+  // Only add HSTS in production and not on localhost
+  const host = request.headers.get('host') || ''
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1')
+  
+  if (process.env.NODE_ENV === 'production' && !isLocal) {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
   
   return response
 }

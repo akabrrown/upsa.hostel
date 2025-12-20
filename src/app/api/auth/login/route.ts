@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: {
         id: profile.id,
         email: profile.email,
@@ -94,6 +94,19 @@ export async function POST(request: NextRequest) {
       session: data.session,
       message: 'Login successful',
     })
+
+    // Set auth cookie for middleware
+    if (data.session?.access_token) {
+      response.cookies.set('sb-access-token', data.session.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+      })
+    }
+
+    return response
 
   } catch (error) {
     console.error('Login error:', error)

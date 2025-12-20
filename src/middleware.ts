@@ -17,11 +17,14 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Access Denied', { status: 403 })
   }
   
-  addSecurityHeaders(response)
+  addSecurityHeaders(request, response)
   handleCORS(request, response)
   
-  // Redirect HTTP to HTTPS in production
-  if (process.env.NODE_ENV === 'production' && request.nextUrl.protocol === 'http') {
+  // Redirect HTTP to HTTPS in production, but exclude localhost/127.0.0.1
+  const host = request.headers.get('host') || ''
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1')
+  
+  if (process.env.NODE_ENV === 'production' && !isLocal && request.nextUrl.protocol === 'http') {
     const httpsUrl = new URL(request.url)
     httpsUrl.protocol = 'https'
     return NextResponse.redirect(httpsUrl)
@@ -29,7 +32,11 @@ export async function middleware(request: NextRequest) {
 
   // 2. Authentication & Authorization Layer
   const token = request.cookies.get('sb-access-token')?.value
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  
+  // Refined route matching to avoid catching everything with '/'
+  const isPublicRoute = publicRoutes.some(route => 
+    route === '/' ? pathname === '/' : pathname.startsWith(route)
+  )
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
 
   // Accessing protected route without token
@@ -48,35 +55,38 @@ export async function middleware(request: NextRequest) {
       )
       const { data: { user }, error } = await supabase.auth.getUser(token)
 
-      if (!error && user) {
-        const userRole = user.user_metadata?.role || 'student'
+      if (error || !user) {
+        // Token is invalid or expired
+        if (isProtectedRoute) {
+          const loginUrl = new URL('/login', request.url)
+          const response = NextResponse.redirect(loginUrl)
+          response.cookies.delete('sb-access-token')
+          return response
+        }
+        return response
+      }
 
-        // If on public route (excluding homepage), redirect to dashboard
-        if (isPublicRoute && pathname !== '/') {
-          const redirectMap: Record<string, string> = {
-            student: '/student/dashboard',
-            admin: '/admin/dashboard',
-            porter: '/porter/dashboard',
-            director: '/director/dashboard',
-          }
+      const userRole = user.user_metadata?.role || 'student'
+      const redirectMap: Record<string, string> = {
+        student: '/student/dashboard',
+        admin: '/admin/dashboard',
+        porter: '/porter/dashboard',
+        director: '/director/dashboard',
+      }
+
+      // If on public route (excluding homepage), redirect to THEIR dashboard
+      if (isPublicRoute && pathname !== '/') {
+        const dashboardUrl = redirectMap[userRole] || '/student/dashboard'
+        return NextResponse.redirect(new URL(dashboardUrl, request.url))
+      }
+
+      // Check if user has access to the protected route they are on
+      if (isProtectedRoute) {
+        const allowedPrefix = `/${userRole}`
+        if (!pathname.startsWith(allowedPrefix)) {
+          // Redirect to their own dashboard instead of login to avoid loops
           const dashboardUrl = redirectMap[userRole] || '/student/dashboard'
           return NextResponse.redirect(new URL(dashboardUrl, request.url))
-        }
-
-        // Check if user has access to the protected route they are on
-        if (isProtectedRoute) {
-          if (pathname.startsWith('/student') && userRole !== 'student') {
-            return NextResponse.redirect(new URL('/login', request.url))
-          }
-          if (pathname.startsWith('/admin') && userRole !== 'admin') {
-            return NextResponse.redirect(new URL('/login', request.url))
-          }
-          if (pathname.startsWith('/porter') && userRole !== 'porter') {
-            return NextResponse.redirect(new URL('/login', request.url))
-          }
-          if (pathname.startsWith('/director') && userRole !== 'director') {
-            return NextResponse.redirect(new URL('/login', request.url))
-          }
         }
       }
     } catch (err) {

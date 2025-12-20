@@ -23,9 +23,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       message: 'Logout successful',
     })
+
+    // Clear auth cookie
+    response.cookies.set('sb-access-token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    })
+
+    return response
 
   } catch (error) {
     console.error('Logout error:', error)
