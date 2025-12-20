@@ -1,26 +1,150 @@
-@import "tailwindcss";
+/* UPSA Hostel Management System - Global Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* Custom CSS Variables for Brand Colors */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --navy-primary: #1e3a8a;
+  --navy-secondary: #1e40af;
+  --navy-dark: #1e2e5a;
+  --navy-light: #3b82f6;
+  --gold-primary: #fbbf24;
+  --gold-secondary: #f59e0b;
+  --gold-light: #fef3c7;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* Base Styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Roboto",
+      "Oxygen",
+      "Ubuntu",
+      "Cantarell",
+      sans-serif;
+    background-color: #f8fafc;
+    color: #1e293b;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Component Styles */
+@layer components {
+  .btn-primary {
+    @apply bg-navy-primary text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 shadow-md;
+  }
+  .btn-primary:hover {
+    @apply bg-navy-secondary;
+  }
+
+  .btn-secondary {
+    @apply bg-gold-primary text-navy-primary px-6 py-3 rounded-lg font-semibold transition-colors duration-200 shadow-md;
+  }
+  .btn-secondary:hover {
+    @apply bg-gold-secondary;
+  }
+
+  .btn-outline {
+    @apply border-2 border-navy-primary text-navy-primary px-6 py-3 rounded-lg font-semibold transition-colors duration-200;
+  }
+  .btn-outline:hover {
+    @apply bg-navy-primary text-white;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-primary focus:border-transparent transition-all duration-200;
+  }
+
+  .nav-link {
+    @apply text-gray-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200;
+  }
+  .nav-link:hover {
+    @apply text-navy-primary;
+  }
+
+  .nav-link.active {
+    @apply text-navy-primary;
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  .text-navy-primary {
+    color: var(--navy-primary);
+  }
+
+  .text-gold-primary {
+    color: var(--gold-primary);
+  }
+
+  .bg-navy-primary {
+    background-color: var(--navy-primary);
+  }
+
+  .bg-gold-primary {
+    background-color: var(--gold-primary);
+  }
+
+  .shadow-gold {
+    box-shadow: 0 4px 14px 0 rgba(251, 191, 36, 0.2);
+  }
+}
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design Helpers */
+@media (max-width: 768px) {
+  .card {
+    @apply p-4;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline {
+    @apply px-4 py-2 text-sm;
+  }
 }

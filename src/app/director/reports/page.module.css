@@ -1,0 +1,115 @@
+/* Director Reports Page Styles */
+
+.pageHeader {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.reportFilters {
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.reportCards {
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+.reportPreview {
+  animation: fadeInUp 0.6s ease-out 0.6s both;
+}
+
+.reportCard {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.reportCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.reportCard.active {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.reportIcon {
+  transition: transform 0.3s ease;
+}
+
+.reportCard:hover .reportIcon {
+  transform: scale(1.1);
+}
+
+.generateButton {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  transition: all 0.3s ease;
+}
+
+.generateButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+}
+
+.generateButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.reportPreview {
+  min-height: 400px;
+}
+
+.placeholderContent {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pageHeader {
+    padding: 1rem 0;
+  }
+  
+  .reportFilters {
+    padding: 1rem;
+  }
+  
+  .reportCards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .generateButton {
+    width: 100%;
+    margin-top: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .reportPreview {
+    padding: 1rem;
+  }
+  
+  .placeholderContent {
+    padding: 2rem 1rem;
+  }
+}

@@ -1,0 +1,105 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { loginSchema } from '@/lib/security/validation'
+import { authRateLimiter, getClientId } from '@/lib/security/rateLimiting'
+
+export async function POST(request: NextRequest) {
+  try {
+    // Rate limiting
+    const clientId = getClientId()
+    const rateLimitResult = authRateLimiter.isAllowed('login:' + clientId)
+    
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many login attempts' },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '5',
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': new Date(rateLimitResult.resetTime).toUTCString(),
+          }
+        }
+      )
+    }
+
+    const body = await request.json()
+    const { email, password, role } = body
+
+    // Validate input
+    const validation = loginSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: validation.error.errors },
+        { status: 400 }
+      )
+    }
+
+    // Authenticate with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile with role using Admin client to bypass RLS
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, role_id, profiles(first_name, last_name)')
+      .eq('id', data.user?.id || '')
+      .single()
+
+    if (profileError || !profile) {
+      console.error('Profile fetch error:', profileError)
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get role name
+    const { data: roleData } = await supabaseAdmin
+      .from('roles')
+      .select('name')
+      .eq('id', profile.role_id)
+      .single()
+      
+    const userRole = roleData?.name || 'student'
+    const firstName = profile.profiles?.[0]?.first_name
+    const lastName = profile.profiles?.[0]?.last_name
+
+    // Verify role matches if a role was claimed in the request
+    if (role && userRole !== role) {
+      return NextResponse.json(
+        { error: 'Role mismatch' },
+        { status: 403 }
+      )
+    }
+
+    return NextResponse.json({
+      user: {
+        id: profile.id,
+        email: profile.email,
+        role: userRole,
+        firstName: firstName,
+        lastName: lastName,
+      },
+      session: data.session,
+      message: 'Login successful',
+    })
+
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
