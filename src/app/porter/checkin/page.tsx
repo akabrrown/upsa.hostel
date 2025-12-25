@@ -9,7 +9,9 @@ import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Clock, User, CheckCircle, AlertCircle } from 'lucide-react'
+import { Search, Filter, Clock, CheckCircle, XCircle, LogIn, User, MapPin, AlertCircle } from 'lucide-react'
+import { formatIndexNumber } from '@/lib/formatters'
+import apiClient from '@/lib/api'
 
 interface SearchResult {
   id: string
@@ -136,7 +138,7 @@ export default function PorterCheckin() {
                         {selectedStudent.firstName} {selectedStudent.lastName}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        {selectedStudent.indexNumber} - Room {selectedStudent.room?.roomNumber || 'Not assigned'}
+                        {formatIndexNumber(selectedStudent.indexNumber)} - Room {selectedStudent.room?.roomNumber || 'Not assigned'}
                       </p>
                     </div>
                   </div>
@@ -172,7 +174,7 @@ export default function PorterCheckin() {
                           {checkin.student.firstName} {checkin.student.lastName}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {checkin.student.indexNumber} - Room {checkin.room?.roomNumber || 'Not assigned'}
+                          {formatIndexNumber(checkin.student.indexNumber)} - Room {checkin.room?.roomNumber || 'Not assigned'}
                         </p>
                       </div>
                     </div>

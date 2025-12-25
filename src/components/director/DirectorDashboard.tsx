@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Select from '@/components/ui/select'
+import Badge from '@/components/ui/badge'
 import { RootState } from '@/store'
 import { fetchNotifications } from '@/store/slices/notificationSlice'
 import { Director } from '@/types'
@@ -230,9 +231,9 @@ const DirectorDashboard = ({ director }: DirectorDashboardProps) => {
                 <h4 className="font-semibold text-gray-900 text-sm">{report.title}</h4>
                 <p className="text-xs text-gray-500 mt-1">{report.date}</p>
               </div>
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              <Badge className="bg-blue-100 text-blue-800">
                 {report.type}
-              </span>
+              </Badge>
             </div>
             <div className="flex space-x-2">
               <Button variant="outline" size="sm" className="flex-1">View</Button>
@@ -275,21 +276,21 @@ const DirectorDashboard = ({ director }: DirectorDashboardProps) => {
                   <p className="text-sm text-gray-600 mt-1">Deadline: {initiative.deadline}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  <Badge className={
                     initiative.priority === 'High' ? 'bg-red-100 text-red-800' :
                     initiative.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-green-100 text-green-800'
-                  }`}>
+                  }>
                     {initiative.priority}
-                  </span>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  </Badge>
+                  <Badge className={
                     initiative.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
                     initiative.status === 'Planning' ? 'bg-yellow-100 text-yellow-800' :
                     initiative.status === 'Not Started' ? 'bg-gray-100 text-gray-800' :
                     'bg-green-100 text-green-800'
-                  }`}>
+                  }>
                     {initiative.status}
-                  </span>
+                  </Badge>
                 </div>
               </div>
               <div className="space-y-2">
@@ -319,13 +320,13 @@ const DirectorDashboard = ({ director }: DirectorDashboardProps) => {
                   <p className="font-medium text-sm">{risk.risk}</p>
                   <p className="text-xs text-gray-600">Impact: {risk.impact}</p>
                 </div>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                <Badge className={
                   risk.level === 'High' ? 'bg-red-100 text-red-800' :
                   risk.level === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-green-100 text-green-800'
-                }`}>
+                }>
                   {risk.level}
-                </span>
+                </Badge>
               </div>
             </div>
           )) || <p className="text-gray-500 text-sm">No risk assessment data available</p>}

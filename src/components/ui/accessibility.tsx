@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { SkipForward, Volume2, VolumeX } from 'lucide-react'
+import Badge from '@/components/ui/badge'
 import styles from './accessibility.module.css'
 
 // Skip to Main Content Component
@@ -331,9 +332,9 @@ export function AccessibleNavigation({
               {item.icon && <span className="w-5 h-5">{item.icon}</span>}
               <span>{item.label}</span>
               {item.badge && (
-                <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                <Badge className="ml-auto bg-red-500 text-white">
                   {item.badge}
-                </span>
+                </Badge>
               )}
             </a>
           </li>

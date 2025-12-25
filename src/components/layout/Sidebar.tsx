@@ -57,10 +57,10 @@ export function Sidebar({ navigation, title = 'Hostel Management', userRole, isO
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col overflow-y-auto px-6 pb-4">
+        <div className="flex flex-1 flex-col overflow-y-auto px-4 sm:px-6 pb-4">
           {userRole && (
             <div className="mt-6 mb-2">
-              <span className="text-xs font-semibold leading-6 text-gray-400 uppercase tracking-wider">
+              <span className="text-responsive-xs font-semibold leading-6 text-gray-400 uppercase tracking-wider">
                 {userRole} Portal
               </span>
             </div>
@@ -74,7 +74,7 @@ export function Sidebar({ navigation, title = 'Hostel Management', userRole, isO
                   key={item.name}
                   href={item.href}
                   className={`
-                    group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold
+                    group flex gap-x-3 rounded-md p-2 text-responsive-sm leading-6 font-semibold
                     ${isActive 
                       ? 'bg-blue-50 text-blue-600' 
                       : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
@@ -82,10 +82,10 @@ export function Sidebar({ navigation, title = 'Hostel Management', userRole, isO
                   `}
                 >
                   <item.icon
-                    className={`h-6 w-6 shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'}`}
+                    className={`h-5 w-5 sm:h-6 sm:w-6 shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'}`}
                     aria-hidden="true"
                   />
-                  {item.name}
+                  <span className="truncate">{item.name}</span>
                 </Link>
               )
             })}

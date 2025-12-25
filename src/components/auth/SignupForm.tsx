@@ -40,6 +40,7 @@ const SignupForm = ({ userType, onSuccess }: SignupFormProps) => {
     role: Yup.string().oneOf(['student']).required(),
     indexNumber: Yup.string().required('Index number is required'),
     dateOfBirth: Yup.string().required('Date of birth is required'),
+    phone: Yup.string().required('Phone number is required'),
     programOfStudy: Yup.string().required('Program of study is required'),
     yearOfStudy: Yup.number().min(1).max(8).required('Year of study is required'),
     emergencyContact: Yup.object({
@@ -66,6 +67,7 @@ const SignupForm = ({ userType, onSuccess }: SignupFormProps) => {
       ...(userType === 'student' && {
         indexNumber: '',
         dateOfBirth: '',
+        phone: '',
         programOfStudy: '',
         yearOfStudy: 1,
         emergencyContact: {
@@ -263,6 +265,22 @@ const SignupForm = ({ userType, onSuccess }: SignupFormProps) => {
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   error={formik.touched.dateOfBirth ? formik.errors.dateOfBirth || undefined : undefined}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="e.g., 0244123456"
+                  value={formik.values.phone}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.phone ? (formik.errors as any).phone || undefined : undefined}
                 />
               </div>
 

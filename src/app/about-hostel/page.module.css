@@ -1,0 +1,169 @@
+/* About Hostel Page Styles */
+
+.heroSection {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 10;
+  max-width: 7xl;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.ctaSection {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+.ctaSection > div {
+  position: relative;
+  z-index: 2;
+}
+
+/* Hostel Card Animations */
+.hostelCard {
+  transition: all 0.3s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.hostelCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.hostelImage {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+}
+
+.hostelImage img {
+  transition: transform 0.3s ease;
+}
+
+.hostelCard:hover .hostelImage img {
+  transform: scale(1.05);
+}
+
+/* Feature Cards */
+.featureCard {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  background: #f9fafb;
+}
+
+.featureCard:hover {
+  background: #f3f4f6;
+  transform: translateY(-2px);
+}
+
+.featureIcon {
+  width: 3rem;
+  height: 3rem;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-radius: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.featureCard:hover .featureIcon {
+  background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+  transform: scale(1.1);
+}
+
+/* Loading State */
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
+.loadingSpinner {
+  width: 3rem;
+  height: 3rem;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 1rem;
+  border: 2px dashed #e5e7eb;
+}
+
+.emptyStateIcon {
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  color: #9ca3af;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .heroContent {
+    padding: 2rem 1rem;
+  }
+  
+  .featureCard {
+    padding: 1.5rem;
+  }
+  
+  .emptyState {
+    padding: 2rem 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hostelCard {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .hostelCard,
+  .hostelImage img,
+  .featureCard,
+  .featureIcon {
+    transition: none;
+  }
+  
+  .loadingSpinner {
+    animation: none;
+  }
+}

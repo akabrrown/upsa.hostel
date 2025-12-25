@@ -10,6 +10,7 @@ import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import { DataTable } from '@/components/ui/dataTable'
 import Badge from '@/components/ui/badge'
+import { formatIndexNumber } from '@/lib/formatters'
 import { Search, Filter, Calendar, User, Building, CheckCircle, Clock, AlertCircle, Eye, Check, X, MoreVertical } from 'lucide-react'
 import { TableColumn } from '@/types'
 
@@ -159,7 +160,7 @@ export default function AdminReservations() {
           </div>
           <div>
             <div className="font-medium text-gray-900">{row.studentName}</div>
-            <div className="text-sm text-gray-500">{row.indexNumber}</div>
+            <div className="text-sm text-gray-500">{formatIndexNumber(row.indexNumber)}</div>
             <div className="text-xs text-gray-400">{row.email}</div>
             <div className="text-xs text-gray-400">{row.program} - {row.yearOfStudy}</div>
           </div>
@@ -455,7 +456,7 @@ export default function AdminReservations() {
                       <span className="font-medium">Name:</span> {selectedReservation.studentName}
                     </div>
                     <div>
-                      <span className="font-medium">Index:</span> {selectedReservation.indexNumber}
+                      <span className="font-medium">Index:</span> {formatIndexNumber(selectedReservation.indexNumber)}
                     </div>
                     <div>
                       <span className="font-medium">Program:</span> {selectedReservation.program}

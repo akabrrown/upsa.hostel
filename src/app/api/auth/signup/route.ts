@@ -37,11 +37,21 @@ export async function POST(request: NextRequest) {
     }
 
     const {
-      indexNumber,
+      firstName,
+      lastName,
+      indexNumber: rawIndexNumber,
       dateOfBirth,
       phone,
-      email
+      email,
+      programOfStudy,
+      yearOfStudy,
+      emergencyContact
     } = validation.data
+
+    // Ensure index number is prefixed for the database
+    const indexNumber = rawIndexNumber.toUpperCase().startsWith('UPSA') 
+      ? rawIndexNumber.toUpperCase() 
+      : `UPSA${rawIndexNumber}`
 
     // Set default values for missing fields
     const phoneNumber = phone || ''
@@ -153,9 +163,16 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .insert({
         user_id: userId,
+        first_name: firstName || rawIndexNumber,
+        last_name: lastName || '',
         date_of_birth: dateOfBirth,
         phone_number: phoneNumber,
         student_id: indexNumber,
+        program: programOfStudy || null,
+        year_of_study: yearOfStudy || null,
+        emergency_contact_name: emergencyContact?.name || null,
+        emergency_contact_phone: emergencyContact?.phone || null,
+        emergency_contact_relationship: emergencyContact?.relationship || null,
         created_at: new Date().toISOString(),
       })
 

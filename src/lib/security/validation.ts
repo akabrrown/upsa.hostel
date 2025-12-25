@@ -10,7 +10,9 @@ export const loginSchema = z.object({
 })
 
 export const signupSchema = z.object({
-  indexNumber: z.string().regex(/^UPSA\d{8}$/, 'Invalid index number format (must be UPSA followed by 8 digits)'),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  indexNumber: z.string().regex(/^(UPSA)?\d{8}$/, 'Invalid index number format (must be 8 digits)'),
   dateOfBirth: z.string().refine((date) => {
     const parsedDate = new Date(date)
     const minAge = new Date()
@@ -19,6 +21,13 @@ export const signupSchema = z.object({
   }, 'Must be at least 16 years old'),
   phone: z.string().regex(/^\+?[\d\s-()]+$/, 'Invalid phone number format'),
   email: z.string().email('Invalid email address').min(1, 'Email is required'),
+  programOfStudy: z.string().optional(),
+  yearOfStudy: z.preprocess((val) => (typeof val === 'string' ? parseInt(val, 10) : val), z.number().min(1).max(8).optional()),
+  emergencyContact: z.object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    relationship: z.string().optional(),
+  }).optional(),
 })
 
 // Room reservation validation

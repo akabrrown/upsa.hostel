@@ -49,8 +49,9 @@ export const formatters = {
 
   // Index number formatter
   formatIndexNumber: (indexNumber: string): string => {
-    // Ensure uppercase and proper format
-    return indexNumber.toUpperCase().trim()
+    if (!indexNumber) return ''
+    const upper = indexNumber.toUpperCase().trim()
+    return upper.startsWith('UPSA') ? upper.replace('UPSA', '') : upper
   },
 
   // Percentage formatter

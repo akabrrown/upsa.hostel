@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation'
 import { useFormik } from 'formik'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
+import Badge from '@/components/ui/badge'
 import { RootState } from '@/store'
 import { fetchNotifications } from '@/store/slices/notificationSlice'
 import { Admin } from '@/types'
 import apiClient from '@/lib/api'
+import { formatIndexNumber } from '@/lib/formatters'
 import styles from './AdminDashboard.module.css'
 
 interface AdminDashboardProps {
@@ -163,13 +165,13 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
                   <p className="font-medium text-sm">{reservation.studentName}</p>
                   <p className="text-xs text-gray-500">{new Date(reservation.createdAt).toLocaleString()}</p>
                 </div>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                <Badge className={
                   reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                   reservation.status === 'approved' ? 'bg-green-100 text-green-800' :
                   'bg-red-100 text-red-800'
-                }`}>
+                }>
                   {reservation.status}
-                </span>
+                </Badge>
               </div>
             )) || <p className="text-gray-500 text-sm">No recent reservations</p>}
           </div>
@@ -239,13 +241,13 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.indexNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatIndexNumber(student.indexNumber)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.programOfStudy}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.roomAllocation}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <Badge className="bg-green-100 text-green-800">
                       {student.status}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Button variant="outline" size="sm" className="mr-2">View</Button>
@@ -286,9 +288,9 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
                     <h4 className="font-semibold text-gray-900">{hostel.name}</h4>
                     <p className="text-sm text-gray-600">{hostel.type}</p>
                   </div>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <Badge className="bg-green-100 text-green-800">
                     {hostel.status}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -355,13 +357,13 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.amount}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.dueDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      <Badge className={
                         payment.status === 'paid' ? 'bg-green-100 text-green-800' : 
                         payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                         'bg-red-100 text-red-800'
-                      }`}>
+                      }>
                         {payment.status}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <Button variant="outline" size="sm">View Details</Button>

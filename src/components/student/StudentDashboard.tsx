@@ -7,6 +7,7 @@ import Button from '@/components/ui/button'
 import { RootState } from '@/store'
 import { fetchNotifications } from '@/store/slices/notificationSlice'
 import { Student } from '@/types'
+import { formatIndexNumber } from '@/lib/formatters'
 import styles from './StudentDashboard.module.css'
 
 interface StudentDashboardProps {
@@ -81,7 +82,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
           </div>
           <div>
             <p className="text-sm text-gray-600">Index Number</p>
-            <p className="font-medium">{student.profile.indexNumber}</p>
+            <p className="font-medium">{formatIndexNumber(student.profile.indexNumber)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Program of Study</p>

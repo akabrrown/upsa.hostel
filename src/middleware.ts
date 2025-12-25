@@ -74,8 +74,8 @@ export async function middleware(request: NextRequest) {
         director: '/director/dashboard',
       }
 
-      // If on public route (excluding homepage), redirect to THEIR dashboard
-      if (isPublicRoute && pathname !== '/') {
+      // If on public route (excluding homepage and login), redirect to THEIR dashboard
+      if (isPublicRoute && pathname !== '/' && pathname !== '/login') {
         const dashboardUrl = redirectMap[userRole] || '/student/dashboard'
         return NextResponse.redirect(new URL(dashboardUrl, request.url))
       }

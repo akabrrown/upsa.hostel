@@ -7,7 +7,9 @@ import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import { RootState } from '@/store'
 import { fetchNotifications } from '@/store/slices/notificationSlice'
+import Badge from '@/components/ui/badge'
 import { Porter } from '@/types'
+import { formatIndexNumber } from '@/lib/formatters'
 import styles from './PorterDashboard.module.css'
 
 interface PorterDashboardProps {
@@ -77,12 +79,12 @@ const PorterDashboard = ({ porter }: PorterDashboardProps) => {
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div>
-                  <p className="font-medium text-sm">Student {2021000 + i}</p>
+                  <p className="font-medium text-sm">Student {formatIndexNumber((2021000 + i).toString())}</p>
                   <p className="text-xs text-gray-500">Room 10{i} • Checked in {i} hour{i > 1 ? 's' : ''} ago</p>
                 </div>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <Badge className="bg-green-100 text-green-800">
                   Active
-                </span>
+                </Badge>
               </div>
             ))}
           </div>
@@ -95,11 +97,11 @@ const PorterDashboard = ({ porter }: PorterDashboardProps) => {
               <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div>
                   <p className="font-medium text-sm">Visitor {i}</p>
-                  <p className="text-xs text-gray-500">Visiting Student {2021000 + i} • Arrived {i * 30} min ago</p>
+                  <p className="text-xs text-gray-500">Visiting Student {formatIndexNumber((2021000 + i).toString())} • Arrived {i * 30} min ago</p>
                 </div>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                <Badge className="bg-yellow-100 text-yellow-800">
                   On-site
-                </span>
+                </Badge>
               </div>
             ))}
           </div>
@@ -167,7 +169,7 @@ const PorterDashboard = ({ porter }: PorterDashboardProps) => {
                     {8 + i}:00 AM
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    Student {2021000 + i}
+                    Student {formatIndexNumber((2021000 + i).toString())}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     Room 10{i}
@@ -247,7 +249,7 @@ const PorterDashboard = ({ porter }: PorterDashboardProps) => {
                     {10 + i}:30 AM
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    Student {2021000 + i}
+                    Student {formatIndexNumber((2021000 + i).toString())}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     Room 10{i}
@@ -312,7 +314,7 @@ const PorterDashboard = ({ porter }: PorterDashboardProps) => {
                     Visitor {i}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    Student {2021000 + i}
+                    Student {formatIndexNumber((2021000 + i).toString())}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     Room 10{i}

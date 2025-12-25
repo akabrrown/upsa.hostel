@@ -12,6 +12,7 @@ import Input from '@/components/ui/input'
 import { DataTable } from '@/components/ui/dataTable'
 import { Badge } from '@/components/ui/badge'
 import { Search, Filter, Download, Eye, Edit, UserPlus, User } from 'lucide-react'
+import { formatIndexNumber } from '@/lib/formatters'
 import { TableColumn } from '@/types'
 
 export default function AdminStudents() {
@@ -47,6 +48,7 @@ export default function AdminStudents() {
       key: 'indexNumber',
       title: 'Index Number',
       sortable: true,
+      render: (value) => formatIndexNumber(value),
     },
     {
       key: 'name',

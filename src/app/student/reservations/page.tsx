@@ -172,10 +172,8 @@ export default function ReservationsHistory() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-4">
                         <Badge className={getStatusColor(reservation.status)}>
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(reservation.status)}
-                            <span className="capitalize">{reservation.status}</span>
-                          </div>
+                          {getStatusIcon(reservation.status)}
+                          <span className="ml-1 capitalize">{reservation.status}</span>
                         </Badge>
                         <Badge variant="outline" className="capitalize">
                           {reservation.type}

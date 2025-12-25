@@ -10,7 +10,8 @@ import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import { DataTable } from '@/components/ui/dataTable'
 import Badge from '@/components/ui/badge'
-import { Search, Filter, Download, CreditCard, Calendar, User, TrendingUp, AlertCircle, CheckCircle, Clock, Eye, MoreVertical } from 'lucide-react'
+import { Search, Filter, Download, Eye, CheckCircle, Clock, AlertCircle, DollarSign, ExternalLink, FilterX, User, CreditCard, TrendingUp } from 'lucide-react'
+import { formatIndexNumber } from '@/lib/formatters'
 import { TableColumn } from '@/types'
 
 interface Payment {
@@ -157,7 +158,7 @@ export default function AdminPayments() {
           </div>
           <div>
             <div className="font-medium text-gray-900">{row.studentName}</div>
-            <div className="text-sm text-gray-500">{row.indexNumber}</div>
+            <div className="text-sm text-gray-500">{formatIndexNumber(row.indexNumber)}</div>
             <div className="text-xs text-gray-400">{row.email}</div>
             <div className="text-xs text-gray-400">{row.program}</div>
           </div>

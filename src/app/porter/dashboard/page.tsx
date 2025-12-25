@@ -7,7 +7,7 @@ import { RootState } from '@/store'
 import Button from '@/components/ui/button'
 import Card from '@/components/ui/card'
 import { 
-  Users, 
+  Users,
   Bed, 
   LogIn, 
   LogOut, 
@@ -237,7 +237,7 @@ export default function PorterDashboard() {
                             </div>
                             <div>
                               <div className="text-sm font-bold text-slate-900">{student.firstName} {student.lastName}</div>
-                              <div className="text-xs text-slate-500 font-medium">{student.indexNumber}</div>
+                              <div className="text-xs text-slate-500 font-medium">{formatIndexNumber(student.indexNumber)}</div>
                             </div>
                           </div>
                         </td>
@@ -255,7 +255,7 @@ export default function PorterDashboard() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusColor(student.accommodationStatus)}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border whitespace-nowrap flex-shrink-0 ${getStatusColor(student.accommodationStatus)}`}>
                             {student.accommodationStatus.toUpperCase()}
                           </span>
                         </td>
@@ -296,10 +296,10 @@ export default function PorterDashboard() {
                         </div>
                         <div>
                           <div className="text-sm font-bold text-slate-900">{student.firstName} {student.lastName}</div>
-                          <div className="text-xs text-slate-500 font-medium">{student.indexNumber}</div>
+                          <div className="text-xs text-slate-500 font-medium">{formatIndexNumber(student.indexNumber)}</div>
                         </div>
                       </div>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusColor(student.accommodationStatus)}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap flex-shrink-0 ${getStatusColor(student.accommodationStatus)}`}>
                         {student.accommodationStatus.toUpperCase()}
                       </span>
                     </div>
@@ -357,7 +357,7 @@ export default function PorterDashboard() {
                         <span className="text-[10px] font-bold text-slate-400">{new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <span className={`px-1.5 py-0.5 rounded uppercase ${getActionColor(record.action)}`}>
+                        <span className={`px-1.5 py-0.5 rounded uppercase whitespace-nowrap flex-shrink-0 ${getActionColor(record.action)}`}>
                           {record.action}
                         </span>
                         <span>•</span>

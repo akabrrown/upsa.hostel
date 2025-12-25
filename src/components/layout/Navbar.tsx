@@ -99,6 +99,15 @@ export function Navbar({ title = 'UPSA Hostel Management', showUserMenu = true, 
                     </button>
                     <button
                       onClick={() => {
+                        router.push('/about-hostel')
+                        setIsUserMenuOpen(false)
+                      }}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                    >
+                      View Hostels
+                    </button>
+                    <button
+                      onClick={() => {
                         router.push('/profile')
                         setIsUserMenuOpen(false)
                       }}

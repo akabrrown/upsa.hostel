@@ -1,17 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import DOMPurify from 'dompurify'
-import { Redis } from '@upstash/redis'
 import { headers } from 'next/headers'
 
-// Initialize Redis for rate limiting
-let redis: Redis | null = null
+// Initialize Redis for rate limiting using local Redis
+let redis: any = null
 
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+if (process.env.REDIS_URL || (process.env.REDIS_HOST && process.env.REDIS_PORT)) {
+  // Use local Redis if configured and in Node.js runtime
+  if (process.env.NEXT_RUNTIME === 'node') {
+    try {
+      const { createClient } = require('redis')
+      redis = createClient({
+        url: process.env.REDIS_URL || `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+        password: process.env.REDIS_PASSWORD || undefined
+      })
+      
+      redis.connect().catch(console.error)
+      console.log('Local Redis client initialized')
+    } catch (error) {
+      console.warn('Failed to initialize local Redis:', error)
+      redis = null
+    }
+  } else {
+    console.log('Skipping local Redis initialization (Edge/Middleware runtime)')
+  }
+} else if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  // Fallback to Upstash Redis if configured
+  const { Redis } = require('@upstash/redis')
   redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   })
+  console.log('Upstash Redis client initialized')
 } else {
   console.warn('Redis configuration missing. Rate limiting and security features will be disabled.')
   // Create a mock Redis client for development

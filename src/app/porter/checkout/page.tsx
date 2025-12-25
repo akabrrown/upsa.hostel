@@ -10,6 +10,7 @@ import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import Badge from '@/components/ui/badge'
 import { Search, Clock, User, LogOut, AlertCircle, CheckCircle, Calendar, MapPin } from 'lucide-react'
+import { formatIndexNumber } from '@/lib/formatters'
 import apiClient from '@/lib/api'
 
 interface Checkin {
@@ -34,37 +35,8 @@ interface Checkin {
 export default function PorterCheckout() {
   const dispatch = useDispatch()
   const { todayCheckins, loading } = useSelector((state: RootState) => state.porter)
-  const [checkins, setCheckins] = useState<Checkin[]>([])
-  const [checkinsLoading, setCheckinsLoading] = useState(true)
-  const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
-
-  useEffect(() => {
-    dispatch(fetchTodayCheckins() as any)
-    loadCheckins()
-
-    // Animate page content
-    const tl = gsap.timeline()
-    
-    tl.fromTo('.page-header',
-      { opacity: 0, y: -30 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
-    )
-  }, [dispatch])
-
-  const loadCheckins = async () => {
-    setCheckinsLoading(true)
-    try {
-      const response = await apiClient.get<Checkin[]>('/porter/checkins')
-      setCheckins(response)
-    } catch (error) {
-      console.error('Failed to load checkins:', error)
-      setError('Failed to load checkins')
-    } finally {
-      setCheckinsLoading(false)
-    }
-  }
 
   useEffect(() => {
     dispatch(fetchTodayCheckins() as any)
@@ -88,18 +60,18 @@ export default function PorterCheckout() {
     )
   }, [dispatch])
 
-  const filteredCheckins = checkins.filter(checkin => {
+  const filteredCheckins = todayCheckins.filter(checkin => {
     const matchesSearch = 
       checkin.student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       checkin.student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       checkin.student.indexNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      checkin.room.roomNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      checkin.room?.roomNumber?.toLowerCase().includes(searchTerm.toLowerCase())
     
     return matchesSearch
   })
 
-  const activeCheckins = checkins.filter(checkin => checkin.status === 'active')
-  const checkedOutToday = checkins.filter(checkin => 
+  const activeCheckins = todayCheckins.filter(checkin => checkin.status === 'active' || checkin.status === 'checked_in')
+  const checkedOutToday = todayCheckins.filter(checkin => 
     checkin.checkOutTime && new Date(checkin.checkOutTime).toDateString() === new Date().toDateString()
   )
 
@@ -203,7 +175,7 @@ export default function PorterCheckout() {
                             {checkin.student.firstName} {checkin.student.lastName}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {checkin.student.indexNumber} - Room {checkin.room?.roomNumber || 'Not assigned'}
+                            {formatIndexNumber(checkin.student.indexNumber)} - Room {checkin.room?.roomNumber || 'Not assigned'}
                           </div>
                           <div className="text-xs text-gray-500">
                             Checked in: {new Date(checkin.checkInTime).toLocaleTimeString()}
@@ -236,7 +208,7 @@ export default function PorterCheckout() {
                       {selectedStudent.firstName} {selectedStudent.lastName}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {selectedStudent.indexNumber} - Room {selectedStudent.room?.roomNumber || 'Not assigned'}
+                      {formatIndexNumber(selectedStudent.indexNumber)} - Room {selectedStudent.room?.roomNumber || 'Not assigned'}
                     </p>
                   </div>
                 </div>
@@ -271,7 +243,7 @@ export default function PorterCheckout() {
                           {checkin.student.firstName} {checkin.student.lastName}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {checkin.student.indexNumber} - Room {checkin.room?.roomNumber || 'Not assigned'}
+                          {formatIndexNumber(checkin.student.indexNumber)} - Room {checkin.room?.roomNumber || 'Not assigned'}
                         </p>
                         <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
                           <span className="flex items-center space-x-1">
@@ -328,7 +300,7 @@ export default function PorterCheckout() {
                           {checkin.student.firstName} {checkin.student.lastName}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {checkin.student.indexNumber} - Room {checkin.room?.roomNumber || 'Not assigned'}
+                          {formatIndexNumber(checkin.student.indexNumber)} - Room {checkin.room?.roomNumber || 'Not assigned'}
                         </p>
                         <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
                           <span className="flex items-center space-x-1">

@@ -37,13 +37,17 @@ export default function LoginPage() {
 
       try {
         // Determine if it's student or staff based on identifier format
-        const isStudent = /^\d{8}$/.test(values.identifier)
+        const cleanIdentifier = values.identifier.toUpperCase().startsWith('UPSA')
+          ? values.identifier.slice(4)
+          : values.identifier
+          
+        const isStudent = /^\d{8}$/.test(cleanIdentifier)
         
         let response
         if (isStudent) {
           // Student authentication with index number + DOB
           response = await authApi.login({
-            email: `${values.identifier}@upsamail.edu.gh`,
+            email: `${cleanIdentifier}@upsamail.edu.gh`,
             password: values.password ? values.password.replace(/-/g, '') : '',
             role: 'student'
           }) as { error?: string; user?: any; session?: any }
@@ -70,8 +74,7 @@ export default function LoginPage() {
             id: user.id,
             email: user.email,
             role: user.role,
-            firstName: user.firstName || null,
-            lastName: user.lastName || null,
+            indexNumber: user.indexNumber || null,
           },
           token: session.access_token,
         }))
@@ -159,17 +162,17 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              {/^\d{8}$/.test(formik.values.identifier) ? 'Date of Birth' : 'Password'}
+              {/^(UPSA)?\d{8}$/i.test(formik.values.identifier) ? 'Date of Birth' : 'Password'}
             </label>
             <input
               id="password"
               name="password"
-              type={/^\d{8}$/.test(formik.values.identifier) ? 'date' : 'password'}
+              type={/^(UPSA)?\d{8}$/i.test(formik.values.identifier) ? 'date' : 'password'}
               value={formik.values.password}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               className="input-field"
-              placeholder={/^\d{8}$/.test(formik.values.identifier) ? 'YYYY-MM-DD' : 'Enter your password'}
+              placeholder={/^(UPSA)?\d{8}$/i.test(formik.values.identifier) ? 'YYYY-MM-DD' : 'Enter your password'}
             />
             {formik.touched.password && formik.errors.password && (
               <div className="text-red-500 text-sm mt-1">{formik.errors.password}</div>

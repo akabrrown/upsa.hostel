@@ -24,7 +24,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+      console.log('Login API - Raw body received:', body)
+    } catch (error) {
+      console.error('Login API - JSON parsing error:', error)
+      console.log('Login API - Request headers:', Object.fromEntries(request.headers.entries()))
+      return NextResponse.json(
+        { error: 'Invalid JSON format' },
+        { status: 400 }
+      )
+    }
+    
     const { email, password, role } = body
 
     // Validate input
@@ -52,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Get user profile with role using Admin client to bypass RLS
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('id, email, role_id, profiles(first_name, last_name)')
+      .select('id, email, role_id, index_number')
       .eq('id', data.user?.id || '')
       .single()
 
@@ -72,8 +84,6 @@ export async function POST(request: NextRequest) {
       .single()
       
     const userRole = roleData?.name || 'student'
-    const firstName = profile.profiles?.[0]?.first_name
-    const lastName = profile.profiles?.[0]?.last_name
 
     // Verify role matches if a role was claimed in the request
     if (role && userRole !== role) {
@@ -88,8 +98,7 @@ export async function POST(request: NextRequest) {
         id: profile.id,
         email: profile.email,
         role: userRole,
-        firstName: firstName,
-        lastName: lastName,
+        indexNumber: profile.index_number,
       },
       session: data.session,
       message: 'Login successful',

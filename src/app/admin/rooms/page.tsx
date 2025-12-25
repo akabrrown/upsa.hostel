@@ -39,6 +39,20 @@ export default function AdminRooms() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null)
+  const [formData, setFormData] = useState({
+    roomNumber: '',
+    hostel: '',
+    floor: '',
+    type: 'custom',
+    capacity: '',
+    monthlyRent: '',
+    condition: 'good',
+    amenities: ''
+  })
+  const [hostels, setHostels] = useState<any[]>([])
+  const [selectedHostelPricing, setSelectedHostelPricing] = useState<any>(null)
 
   useEffect(() => {
     // Animate page elements
@@ -66,6 +80,44 @@ export default function AdminRooms() {
     }
   }
 
+  const fetchHostels = async () => {
+    try {
+      const response = await fetch('/api/hostels')
+      if (response.ok) {
+        const result = await response.json()
+        setHostels(result.hostels || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch hostels:', error)
+      setHostels([]) // Set empty array instead of hardcoded data
+    }
+  }
+
+  useEffect(() => {
+    fetchHostels()
+  }, [])
+
+  // Update pricing when hostel is selected
+  useEffect(() => {
+    if (selectedHostelPricing && formData.capacity) {
+      // Calculate price based on capacity and hostel pricing (semester-based)
+      const capacity = parseInt(formData.capacity)
+      let pricePerPerson = 0
+      
+      if (capacity === 1) {
+        pricePerPerson = selectedHostelPricing.single || 0
+      } else if (capacity === 2) {
+        pricePerPerson = selectedHostelPricing.double || 0
+      } else if (capacity >= 4) {
+        pricePerPerson = selectedHostelPricing.quadruple || 0
+      }
+      
+      // Total price per semester for the room
+      const totalSemesterPrice = pricePerPerson * capacity
+      setFormData(prev => ({ ...prev, monthlyRent: totalSemesterPrice.toString() }))
+    }
+  }, [formData.capacity, selectedHostelPricing])
+
   useEffect(() => {
     // Animate page content
     const tl = gsap.timeline()
@@ -86,12 +138,24 @@ export default function AdminRooms() {
     )
   }, [])
 
-  const hostels = [
+  const hostelOptions = hostels.length > 0 ? [
     { id: 'all', name: 'All Hostels' },
-    { id: 'Block A', name: 'Block A' },
-    { id: 'Block B', name: 'Block B' },
-    { id: 'Block C', name: 'Block C' }
+    ...hostels.map(hostel => ({ id: hostel.id, name: hostel.name }))
+  ] : [
+    { id: 'all', name: 'All Hostels' }
   ]
+
+  const handleHostelChange = (hostelId: string) => {
+    setFormData(prev => ({ ...prev, hostel: hostelId }))
+    
+    // Find selected hostel and set pricing
+    const selectedHostel = hostels.find(h => h.id === hostelId)
+    if (selectedHostel && selectedHostel.room_pricing) {
+      setSelectedHostelPricing(selectedHostel.room_pricing)
+    } else {
+      setSelectedHostelPricing(null)
+    }
+  }
 
   const roomTypes = [
     { id: 'all', name: 'All Types' },
@@ -129,6 +193,73 @@ export default function AdminRooms() {
       case 'poor': return 'text-red-600 bg-red-100'
       default: return 'text-gray-600 bg-gray-100'
     }
+  }
+
+  const handleCreateRoom = async () => {
+    try {
+      const roomData = {
+        room_number: formData.roomNumber,
+        hostel_id: formData.hostel,
+        floor_number: parseInt(formData.floor),
+        type: formData.type.toLowerCase(),
+        capacity: parseInt(formData.capacity),
+        monthly_rent: parseFloat(formData.monthlyRent),
+        condition: formData.condition,
+        amenities: formData.amenities.split(',').map(a => a.trim()).filter(a => a)
+      }
+
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(roomData),
+      })
+
+      if (response.ok) {
+        alert('Room created successfully!')
+        setShowCreateModal(false)
+        setFormData({
+          roomNumber: '',
+          hostel: '',
+          floor: '',
+          type: 'Single',
+          capacity: '',
+          monthlyRent: '',
+          condition: 'good',
+          amenities: ''
+        })
+        loadRooms()
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to create room: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error creating room:', error)
+      alert('Failed to create room. Please try again.')
+    }
+  }
+
+  const handleEditRoom = (room: Room) => {
+    setEditingRoom(room)
+    setFormData({
+      roomNumber: room.roomNumber,
+      hostel: room.hostel,
+      floor: room.floor.toString(),
+      type: room.type,
+      capacity: room.capacity.toString(),
+      monthlyRent: room.monthlyRent.toString(),
+      condition: room.condition,
+      amenities: room.amenities.join(', ')
+    })
+    setShowCreateModal(true)
+  }
+
+  const handleUpdateRoom = async () => {
+    // Similar to create but with PUT method
+    console.log('Updating room:', editingRoom?.id, formData)
+    setShowCreateModal(false)
+    setEditingRoom(null)
   }
 
   const totalRooms = rooms.length
@@ -196,9 +327,9 @@ export default function AdminRooms() {
     },
     {
       key: 'monthlyRent',
-      title: 'Monthly Rent',
+      title: 'Semester Price',
       render: (value: number) => (
-        <span className="font-semibold">${value}</span>
+        <span className="font-semibold">${value}/semester</span>
       )
     },
     {
@@ -227,7 +358,7 @@ export default function AdminRooms() {
               <h1 className="text-3xl font-bold text-gray-900">Room Management</h1>
               <p className="text-gray-600 mt-1">Manage hostel rooms and occupancy</p>
             </div>
-            <Button>
+            <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Room
             </Button>
@@ -291,7 +422,7 @@ export default function AdminRooms() {
                   onChange={(e) => setSelectedHostel(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {hostels.map(hostel => (
+                  {hostelOptions.map(hostel => (
                     <option key={hostel.id} value={hostel.id}>
                       {hostel.name}
                     </option>
@@ -332,6 +463,170 @@ export default function AdminRooms() {
           </Card>
         </div>
       </div>
+
+      {/* Create/Edit Room Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {editingRoom ? 'Edit Room' : 'Create New Room'}
+                </h2>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setEditingRoom(null)
+                  }}
+                >
+                  ×
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Room Number
+                    </label>
+                    <Input
+                      value={formData.roomNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, roomNumber: e.target.value }))}
+                      placeholder="e.g., 101, A-101"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Hostel
+                    </label>
+                    <select
+                      value={formData.hostel}
+                      onChange={(e) => handleHostelChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Hostel</option>
+                      {hostels.map(hostel => (
+                        <option key={hostel.id} value={hostel.id}>
+                          {hostel.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Floor Number
+                    </label>
+                    <Input
+                      type="number"
+                      value={formData.floor}
+                      onChange={(e) => setFormData(prev => ({ ...prev, floor: e.target.value }))}
+                      placeholder="e.g., 1, 2, 3"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Room Capacity (Number of Persons)
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={formData.capacity}
+                      onChange={(e) => setFormData(prev => ({ ...prev, capacity: e.target.value }))}
+                      placeholder="e.g., 1, 2, 3, 4, 6"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Number of persons that can occupy this room</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Room Type
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="custom">Custom Room</option>
+                      <option value="single">Single Room (1 Person)</option>
+                      <option value="double">Double Room (2 Persons)</option>
+                      <option value="triple">Triple Room (3 Persons)</option>
+                      <option value="quadruple">Quadruple Room (4 Persons)</option>
+                      <option value="suite">Suite Room</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Semester Price ($)
+                    </label>
+                    <Input
+                      type="number"
+                      value={formData.monthlyRent}
+                      onChange={(e) => setFormData(prev => ({ ...prev, monthlyRent: e.target.value }))}
+                      placeholder="Auto-calculated or enter custom price"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Auto-calculated based on capacity and hostel pricing (per semester)</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Condition
+                    </label>
+                    <select
+                      value={formData.condition}
+                      onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Amenities (comma separated)
+                    </label>
+                    <Input
+                      value={formData.amenities}
+                      onChange={(e) => setFormData(prev => ({ ...prev, amenities: e.target.value }))}
+                      placeholder="Wi-Fi, AC, Study Desk"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setEditingRoom(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={editingRoom ? handleUpdateRoom : handleCreateRoom}>
+                  {editingRoom ? 'Update Room' : 'Create Room'}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

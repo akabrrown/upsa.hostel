@@ -163,7 +163,7 @@ export const validationRules = {
 
   indexNumber: (message: string = 'Invalid index number format'): ValidationRule => ({
     type: 'pattern',
-    value: /^\d{4}\/\d{4}$/,
+    value: /^(UPSA)?\d{8}$/,
     message,
   }),
 
@@ -408,7 +408,7 @@ export const validationHelpers = {
   },
 
   isIndexNumber: (indexNumber: string): boolean => {
-    const indexRegex = /^\d{4}\/\d{4}$/
+    const indexRegex = /^(UPSA)?\d{8}$/
     return indexRegex.test(indexNumber)
   },
 
@@ -478,7 +478,7 @@ export const commonSchemas = {
   }),
 
   signup: Yup.object({
-    indexNumber: Yup.string().matches(/^\d{8}$/, 'Invalid index number format (e.g., 12345678)').required('Index number is required'),
+    indexNumber: Yup.string().matches(/^(UPSA)?\d{8}$/, 'Invalid index number format (e.g., 12345678)').required('Index number is required'),
     dateOfBirth: Yup.date().required('Date of birth is required'),
     phone: Yup.string().matches(/^(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/, 'Invalid phone number').required('Phone number is required'),
     email: Yup.string().email('Invalid email').required('Email is required'),

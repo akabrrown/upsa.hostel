@@ -51,8 +51,39 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Transform to camelCase for frontend consistency
+    const transformedStudents = (students || []).map((s: any) => ({
+      id: s.id,
+      firstName: s.first_name,
+      lastName: s.last_name,
+      indexNumber: s.index_number,
+      email: s.email,
+      phoneNumber: s.phone_number,
+      phone: s.phone_number, // Alias for older components
+      dateOfBirth: s.date_of_birth,
+      programOfStudy: s.program || s.program_of_study,
+      yearOfStudy: s.year_of_study,
+      accommodationStatus: s.accommodation_status,
+      paymentStatus: s.payment_status || 'pending',
+      academicYear: s.academic_year,
+      room: s.room_bookings?.[0]?.rooms ? {
+        hostel: s.room_bookings[0].rooms.hostels?.name,
+        roomNumber: s.room_bookings[0].rooms.room_number,
+        floorNumber: s.room_bookings[0].rooms.floors?.floor_number,
+        bedNumber: s.room_bookings[0].bed_number || ''
+      } : null,
+      // Keep nested structure as well just in case
+      accommodation: s.room_bookings?.[0]?.rooms ? {
+        hostel: { name: s.room_bookings[0].rooms.hostels?.name },
+        room: { 
+          roomNumber: s.room_bookings[0].rooms.room_number,
+          bedNumber: s.room_bookings[0].bed_number || ''
+        }
+      } : null
+    }))
+
     return NextResponse.json({
-      students,
+      students: transformedStudents,
       pagination: {
         page,
         limit,

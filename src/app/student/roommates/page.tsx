@@ -7,8 +7,9 @@ import { RootState } from '@/store'
 import { gsap } from 'gsap'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
-import Badge from '@/components/ui/badge'
-import { Users, Phone, Mail, Calendar, MapPin, Book, User, MessageCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { formatIndexNumber } from '@/lib/formatters'
+import { User, Users, MessageSquare, MessageCircle, Phone, MapPin, Calendar, Book, Mail } from 'lucide-react'
 
 interface Roommate {
   id: string
@@ -139,7 +140,7 @@ export default function RoommateDetails() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Users className="w-4 h-4 text-gray-400" />
-                          <span>{roommate.indexNumber}</span>
+                          <span>{formatIndexNumber(roommate.indexNumber)}</span>
                         </div>
                       </div>
                     </div>

@@ -11,6 +11,7 @@ import { DataTable } from '@/components/ui/dataTable'
 import apiClient from '@/lib/api'
 import styles from './accounts.module.css'
 import { Search, Filter, Plus, Edit, Eye, Trash2, User, Mail, Shield, Calendar, MoreVertical, Lock, Unlock, X } from 'lucide-react'
+import { formatIndexNumber } from '@/lib/formatters'
 import { TableColumn } from '@/types'
 import { useCallback } from 'react'
 
@@ -249,7 +250,7 @@ export default function AdminAccounts() {
       key: 'indexNumber',
       title: 'Index Number',
       render: (value: string) => (
-        <span className="text-sm text-gray-600 font-mono">{value || '-'}</span>
+        <span className="text-sm text-gray-600 font-mono">{formatIndexNumber(value) || '-'}</span>
       )
     },
     {

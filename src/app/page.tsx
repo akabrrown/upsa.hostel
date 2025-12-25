@@ -71,9 +71,9 @@ export default function Home() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/hostels">
+            <Link href="/about-hostel">
               <Button variant="outline" size="lg" className="px-8 py-4 border-white text-white hover:bg-white hover:text-gray-900">
-                Learn More
+                View Hostels
               </Button>
             </Link>
           </div>

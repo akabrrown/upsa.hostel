@@ -34,7 +34,8 @@ export const createTestServer = (port = 3001) => {
 
 // Make HTTP request utility
 export const makeRequest = async (url: string, options: any = {}) => {
-  const response = await fetch(`http://localhost:3001${url}`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+  const response = await fetch(`${baseUrl}${url}`, {
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,

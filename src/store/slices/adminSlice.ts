@@ -40,7 +40,7 @@ export const fetchStudents = createAsyncThunk(
       const data = await response.json()
       
       if (response.ok) {
-        return data.data || []
+        return data.students || []
       } else {
         return rejectWithValue(data.error || 'Failed to fetch students')
       }

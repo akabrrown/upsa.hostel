@@ -8,6 +8,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Select from '@/components/ui/select'
+import Badge from '@/components/ui/badge'
 import { RootState } from '@/store'
 import { 
   fetchAvailableHostels, 
@@ -92,15 +93,15 @@ const BookingForm = () => {
                   <h3 className="font-semibold text-lg">{hostel.name}</h3>
                   <p className="text-gray-600 text-sm">{hostel.address}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <Badge className="bg-blue-100 text-blue-800">
                       {hostel.totalRooms} Rooms
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    </Badge>
+                    <Badge className="bg-green-100 text-green-800">
                       {hostel.totalBeds} Beds
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    </Badge>
+                    <Badge className="bg-purple-100 text-purple-800">
                       {hostel.gender}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
                 <div className="flex items-center">

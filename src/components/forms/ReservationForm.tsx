@@ -10,6 +10,7 @@ import Button from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FormikField, FormikCheckbox, FormikRadioGroup, FormikMultiStep } from './FormikField'
 import { Users, Bed, Calendar, DollarSign, CheckCircle, AlertCircle, Home, Clock } from 'lucide-react'
+import { formatIndexNumber } from '@/lib/formatters'
 import styles from './ReservationForm.module.css'
 
 interface ReservationFormData {
@@ -491,7 +492,7 @@ export function ReservationForm({ onSubmit, loading = false }: ReservationFormPr
                       <h4 className="font-medium text-gray-700 mb-2">Personal Information</h4>
                       <div className="space-y-1 text-sm">
                         <p><strong>Name:</strong> {values.firstName} {values.lastName}</p>
-                        <p><strong>Index:</strong> {values.indexNumber}</p>
+                        <p><strong>Index:</strong> {formatIndexNumber(values.indexNumber)}</p>
                         <p><strong>Email:</strong> {values.email}</p>
                         <p><strong>Phone:</strong> {values.phone}</p>
                         <p><strong>Program:</strong> {values.programOfStudy}</p>

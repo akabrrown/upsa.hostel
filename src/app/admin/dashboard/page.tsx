@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { RootState } from '@/store'
+import { fetchNotifications } from '@/store/slices/notificationSlice'
+import { formatIndexNumber } from '@/lib/formatters'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import { Users, Bed, CreditCard, Calendar, TrendingUp, AlertCircle, CheckCircle, Eye, Edit, Trash2, Plus } from 'lucide-react'
@@ -53,20 +55,33 @@ export default function AdminDashboard() {
       return
     }
 
-    // In real app, this would come from API
-    const studentsData: Student[] = []
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Fetch stats
+        const statsRes = await fetch('/api/admin/stats')
+        const statsData = await statsRes.json()
+        
+        if (statsRes.ok) {
+          setStats(statsData)
+        }
 
-    setTimeout(() => {
-      setStats({
-        totalStudents: 0,
-        occupancyRate: 0,
-        pendingPayments: 0,
-        pendingApplications: 0,
-        recentActivities: []
-      })
-      setRecentStudents(studentsData)
-      setIsLoading(false)
-    }, 1000)
+        // Fetch recent students
+        const studentsRes = await fetch('/api/admin/students?limit=5')
+        const studentsData = await studentsRes.json()
+        
+        if (studentsRes.ok) {
+          setRecentStudents(studentsData.students)
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDashboardData()
   }, [user, router])
 
   const getActivityIcon = (type: string) => {
@@ -115,8 +130,8 @@ export default function AdminDashboard() {
         
       <main className="flex-1 p-6">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-gray-600 mt-2">Welcome back, {user?.firstName}</p>
+            <h1 className="text-responsive-3xl font-bold text-gray-900">Dashboard Overview</h1>
+            <p className="text-responsive-base text-gray-600 mt-2">Welcome back, {user?.firstName}</p>
           </div>
 
           {/* Stats Cards */}
@@ -127,8 +142,8 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Students</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats?.totalStudents}</p>
+                  <p className="text-responsive-sm font-medium text-gray-600">Total Students</p>
+                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.totalStudents}</p>
                 </div>
               </div>
             </Card>
@@ -139,8 +154,8 @@ export default function AdminDashboard() {
                   <Bed className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Occupancy Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats?.occupancyRate}%</p>
+                  <p className="text-responsive-sm font-medium text-gray-600">Occupancy Rate</p>
+                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.occupancyRate}%</p>
                 </div>
               </div>
             </Card>
@@ -151,8 +166,8 @@ export default function AdminDashboard() {
                   <CreditCard className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending Payments</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats?.pendingPayments}</p>
+                  <p className="text-responsive-sm font-medium text-gray-600">Pending Payments</p>
+                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.pendingPayments}</p>
                 </div>
               </div>
             </Card>
@@ -163,8 +178,8 @@ export default function AdminDashboard() {
                   <Calendar className="h-6 w-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats?.pendingApplications}</p>
+                  <p className="text-responsive-sm font-medium text-gray-600">Pending Applications</p>
+                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.pendingApplications}</p>
                 </div>
               </div>
             </Card>
@@ -174,7 +189,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Activities</h2>
+                <h2 className="text-responsive-lg font-semibold text-gray-900">Recent Activities</h2>
                 <Button variant="outline" size="sm">
                   <Eye className="h-4 w-4 mr-1" />
                   View All
@@ -185,8 +200,8 @@ export default function AdminDashboard() {
                   <div key={activity.id} className="flex items-start space-x-3">
                     {getActivityIcon(activity.type)}
                     <div className="flex-1">
-                      <p className="text-sm text-gray-900">{activity.description}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-responsive-sm text-gray-900 line-clamp-2">{activity.description}</p>
+                      <p className="text-responsive-xs text-gray-500">
                         {new Date(activity.timestamp).toLocaleString()}
                       </p>
                     </div>
@@ -197,7 +212,7 @@ export default function AdminDashboard() {
 
             <Card className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Students</h2>
+                <h2 className="text-responsive-lg font-semibold text-gray-900">Recent Students</h2>
                 <Button variant="outline" size="sm">
                   <Plus className="h-4 w-4 mr-1" />
                   Add Student
@@ -205,20 +220,20 @@ export default function AdminDashboard() {
               </div>
               <div className="space-y-4">
                 {recentStudents.map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">
+                  <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg overflow-hidden">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 truncate">
                         {student.firstName} {student.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">{student.indexNumber}</p>
-                      <p className="text-xs text-gray-400">{student.email}</p>
+                      <p className="text-responsive-sm text-gray-500 truncate">{formatIndexNumber(student.indexNumber)}</p>
+                      <p className="text-responsive-xs text-gray-400 truncate">{student.email}</p>
                     </div>
-                    <div className="text-right">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(student.accommodationStatus)}`}>
+                    <div className="text-right ml-2 flex-shrink-0">
+                      <span className={`inline-flex px-2 py-1 text-responsive-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 ${getStatusColor(student.accommodationStatus)}`}>
                         {student.accommodationStatus}
                       </span>
                       {student.room && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-responsive-xs text-gray-500 mt-1 truncate">
                           {student.room.hostel} - {student.room.roomNumber}
                         </p>
                       )}

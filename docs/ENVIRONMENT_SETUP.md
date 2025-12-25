@@ -659,7 +659,7 @@ lsof -i :3000
 kill -9 <PID>
 
 # Or use different port
-PORT=3001 npm run dev
+PORT=3000 npm run dev
 ```
 
 #### Environment Variable Issues

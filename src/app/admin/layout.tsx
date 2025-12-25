@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   FileText,
-  UserCircle
+  UserCircle,
+  Edit
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
@@ -23,6 +24,7 @@ const adminNavigation = [
   { name: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Students', href: '/admin/students', icon: Users },
   { name: 'Hostels', href: '/admin/hostels', icon: Building2 },
+  { name: 'Hostel Settings', href: '/admin/hostel-settings', icon: Edit },
   { name: 'Rooms', href: '/admin/rooms', icon: Building2 },
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
   { name: 'Announcements', href: '/admin/announcements', icon: Bell },
@@ -77,7 +79,7 @@ export default function AdminLayout({
               {/* Profile dropdown */}
               <div className="flex items-center gap-x-4 p-1">
                  <span className="hidden lg:flex lg:items-center">
-                    <span className="text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
+                    <span className="text-responsive-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
                       {user?.firstName} {user?.lastName}
                     </span>
                  </span>
@@ -94,7 +96,7 @@ export default function AdminLayout({
         </header>
 
         {/* Main content area */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

@@ -2,7 +2,7 @@
 import { authRateLimiter, getClientId } from '@/lib/security/rateLimiting'
 
 // Base API configuration
-const API_BASE_URL = '/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
 // API client class
 class ApiClient {

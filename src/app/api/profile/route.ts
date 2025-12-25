@@ -40,83 +40,39 @@ export async function GET(request: NextRequest) {
 
     // Get user profile based on role
     const userRole = user.user_metadata?.role
-    let profileData = null
-
-    switch (userRole) {
-      case 'student':
-        const { data: studentProfile, error: studentError } = await supabase
-          .from('students')
-          .select(`
-            *,
-            user:users(email, created_at),
-            accommodation:room_allocations(
-              id,
-              status,
-              room:rooms(
-                room_number,
-                room_type,
-                monthly_fee,
-                hostel:hostels(name, address)
-              ),
-              bed:beds(bed_number)
-            )
-          `)
-          .eq('user_id', user.id)
-          .single()
-
-        if (studentError) throw studentError
-        profileData = studentProfile
-        break
-
-      case 'admin':
-        const { data: adminProfile, error: adminError } = await supabase
-          .from('admins')
-          .select(`
-            *,
-            user:users(email, created_at)
-          `)
-          .eq('user_id', user.id)
-          .single()
-
-        if (adminError) throw adminError
-        profileData = adminProfile
-        break
-
-      case 'porter':
-        const { data: porterProfile, error: porterError } = await supabase
-          .from('porters')
-          .select(`
-            *,
-            user:users(email, created_at),
-            assigned_hostel:hostels(name, address)
-          `)
-          .eq('user_id', user.id)
-          .single()
-
-        if (porterError) throw porterError
-        profileData = porterProfile
-        break
-
-      case 'director':
-        const { data: directorProfile, error: directorError } = await supabase
-          .from('directors')
-          .select(`
-            *,
-            user:users(email, created_at)
-          `)
-          .eq('user_id', user.id)
-          .single()
-
-        if (directorError) throw directorError
-        profileData = directorProfile
-        break
-
-      default:
-        return NextResponse.json(
-          { error: 'Invalid user role' },
-          { status: 400 }
+    // Get user profile data directly from profiles table
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        users(email, index_number),
+        roles(name),
+        accommodation:room_allocations(
+          id,
+          status,
+          room:rooms(
+            room_number,
+            room_type,
+            monthly_fee,
+            hostel:hostels(name, address)
+          ),
+          bed:beds(bed_number)
+        ),
+        bookings:room_bookings(
+          *,
+          hostels(name),
+          rooms(room_number)
+        ),
+        reservations:room_reservations(
+          *,
+          hostels(name),
+          room_types(name)
         )
-    }
+      `)
+      .eq('user_id', user.id)
+      .single()
+
+    if (profileError) throw profileError
 
     return NextResponse.json({
       data: {
@@ -162,60 +118,26 @@ export async function PUT(request: NextRequest) {
         
         // Update profile based on role
         const userRole = user.user_metadata?.role
-        let updateData = {}
-        let table = ''
         
-        switch (userRole) {
-          case 'student':
-            table = 'students'
-            updateData = {
-              first_name: validatedData.firstName,
-              last_name: validatedData.lastName,
-              phone_number: validatedData.phoneNumber,
-              program_of_study: validatedData.programOfStudy,
-              year_of_study: validatedData.yearOfStudy,
-              index_number: validatedData.indexNumber,
-              emergency_contact_name: validatedData.emergencyContactName,
-              emergency_contact_phone: validatedData.emergencyContactPhone,
-              emergency_contact_relationship: validatedData.emergencyContactRelationship,
-              updated_at: new Date().toISOString(),
-            }
-            break
-
-          case 'admin':
-            table = 'admins'
-            updateData = {
-              first_name: validatedData.firstName,
-              last_name: validatedData.lastName,
-              phone_number: validatedData.phoneNumber,
-              updated_at: new Date().toISOString(),
-            }
-            break
-
-          case 'porter':
-            table = 'porters'
-            updateData = {
-              first_name: validatedData.firstName,
-              last_name: validatedData.lastName,
-              phone_number: validatedData.phoneNumber,
-              updated_at: new Date().toISOString(),
-            }
-            break
-
-          case 'director':
-            table = 'directors'
-            updateData = {
-              first_name: validatedData.firstName,
-              last_name: validatedData.lastName,
-              phone_number: validatedData.phoneNumber,
-              updated_at: new Date().toISOString(),
-            }
-            break
+        // Use profiles table for all roles
+        const updateData = {
+          first_name: validatedData.firstName,
+          last_name: validatedData.lastName,
+          phone_number: validatedData.phoneNumber,
+          updated_at: new Date().toISOString(),
+          ...(userRole === 'student' && {
+            program: validatedData.programOfStudy,
+            year_of_study: validatedData.yearOfStudy,
+            student_id: validatedData.indexNumber,
+            emergency_contact_name: validatedData.emergencyContactName,
+            emergency_contact_phone: validatedData.emergencyContactPhone,
+            emergency_contact_relationship: validatedData.emergencyContactRelationship,
+          })
         }
 
-        // Update profile
+        // Update profile in profiles table
         const { data: profile, error } = await supabase
-          .from(table)
+          .from('profiles')
           .update(updateData)
           .eq('user_id', user.id)
           .select()

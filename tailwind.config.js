@@ -28,6 +28,23 @@ module.exports = {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      fontSize: {
+        'responsive-2xs': ['clamp(0.5rem, 1.2vw, 0.625rem)', { lineHeight: '1.2' }],
+        'responsive-xs': ['clamp(0.625rem, 1.5vw, 0.75rem)', { lineHeight: '1.2' }],
+        'responsive-sm': ['clamp(0.75rem, 2vw, 0.875rem)', { lineHeight: '1.4' }],
+        'responsive-base': ['clamp(0.875rem, 2.5vw, 1rem)', { lineHeight: '1.5' }],
+        'responsive-lg': ['clamp(1rem, 3vw, 1.125rem)', { lineHeight: '1.5' }],
+        'responsive-xl': ['clamp(1.125rem, 3.5vw, 1.25rem)', { lineHeight: '1.4' }],
+        'responsive-2xl': ['clamp(1.25rem, 4vw, 1.5rem)', { lineHeight: '1.3' }],
+        'responsive-3xl': ['clamp(1.5rem, 5vw, 1.875rem)', { lineHeight: '1.3' }],
+        'responsive-4xl': ['clamp(1.875rem, 6vw, 2.25rem)', { lineHeight: '1.2' }],
+        'responsive-5xl': ['clamp(2.25rem, 7vw, 3rem)', { lineHeight: '1.1' }],
+        'responsive-6xl': ['clamp(3rem, 8vw, 4rem)', { lineHeight: '1.1' }],
+      },
+      screens: {
+        'xs': '475px',
+        '3xl': '1600px',
+      },
     },
   },
   plugins: [],
