@@ -7,6 +7,8 @@ import { RootState } from '@/store'
 import { logout } from '@/store/slices/authSlice'
 import { Menu, X, User, LogOut, Settings } from 'lucide-react'
 import Image from 'next/image'
+import { authApi } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 import styles from './Navbar.module.css'
 
 interface NavbarProps {
@@ -21,9 +23,24 @@ export function Navbar({ title = 'UPSA Hostel Management', showUserMenu = true, 
   const dispatch = useDispatch()
   const router = useRouter()
 
-  const handleLogout = () => {
-    dispatch(logout())
-    router.push('/login')
+  const handleLogout = async () => {
+    try {
+      // 1. Call server logout to clear HttpOnly cookies
+      await authApi.logout()
+      
+      // 2. Clear Redux state
+      dispatch(logout())
+      
+      // 3. Clear Supabase client session (just in case)
+      await supabase.auth.signOut()
+      
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // 4. Redirect to login
+      router.push('/login')
+      router.refresh() // Force refresh to clear server context
+    }
   }
 
   const getDashboardPath = () => {
@@ -57,6 +74,8 @@ export function Navbar({ title = 'UPSA Hostel Management', showUserMenu = true, 
                 alt="UPSA Logo" 
                 width={120}
                 height={32}
+                priority
+                style={{ height: 'auto' }}
                 className="object-contain"
               />
             </div>
@@ -108,7 +127,8 @@ export function Navbar({ title = 'UPSA Hostel Management', showUserMenu = true, 
                     </button>
                     <button
                       onClick={() => {
-                        router.push('/profile')
+                        const settingsPath = user?.role === 'student' ? '/student/settings' : '/admin/settings'
+                        router.push(settingsPath)
                         setIsUserMenuOpen(false)
                       }}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"

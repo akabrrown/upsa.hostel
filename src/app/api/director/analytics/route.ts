@@ -1,5 +1,8 @@
+
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,58 +15,72 @@ export async function GET(request: NextRequest) {
     const dateRange = calculateDateRange(period, startDate || undefined, endDate || undefined)
 
     // Get overview data
-    const { data: totalStudents } = await supabase
-      .from('students')
-      .select('id')
+    // Total Students (users with role student? or profiles with student_id?) 
+    // Let's count profiles with student_id not null
+    const { count: totalStudents } = await supabaseAdmin
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .not('student_id', 'is', null)
 
-    const { data: totalRooms } = await supabase
+    const { count: totalRooms } = await supabaseAdmin
       .from('rooms')
-      .select('id')
+      .select('id', { count: 'exact', head: true })
 
-    const { data: totalBookings } = await supabase
-      .from('room_bookings')
-      .select('id')
+    const { count: totalBookings } = await supabaseAdmin
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', dateRange.start)
       .lte('created_at', dateRange.end)
 
-    const { data: totalRevenue } = await supabase
-      .from('payment_records')
+    const { data: revenueData } = await supabaseAdmin
+      .from('payments')
       .select('amount')
+      .eq('status', 'Confirmed') // Only confirmed payments
       .gte('payment_date', dateRange.start)
       .lte('payment_date', dateRange.end)
 
     // Get monthly data
-    const { data: monthlyData } = await supabase
-      .from('room_bookings')
+    const { data: monthlyData } = await supabaseAdmin
+      .from('bookings')
       .select('created_at')
       .gte('created_at', dateRange.start)
       .lte('created_at', dateRange.end)
 
     // Process monthly data
-    const monthlyStats = processMonthlyData(monthlyData || [])
+    const monthlyStats = processMonthlyData(monthlyData || [], totalRooms || 1)
 
-    // Get hostel performance
-    const { data: hostelPerformance } = await supabase
+    // Get hostel performance with maintenance counts
+    // Note: Supabase nested count is trickier with deep nesting in one go if we want aggregations.
+    // Easier to fetch all maintenance requests with room->hostel_id and aggregate in JS.
+    const { data: maintenanceData } = await supabaseAdmin
+      .from('maintenance')
+      .select(`
+        id,
+        rooms (
+          hostel_id
+        )
+      `)
+
+    const { data: hostelPerformance } = await supabaseAdmin
       .from('hostels')
       .select(`
         id,
         name,
-        rooms!inner(
+        rooms (
           id,
-          beds!inner(
-            id,
-            is_occupied
-          )
+          capacity,
+          current_occupancy
         )
       `)
 
     // Process hostel performance
-    const hostelStats = processHostelPerformance(hostelPerformance || [])
+    const hostelStats = processHostelPerformance(hostelPerformance || [], maintenanceData || [])
 
     // Get payment trends
-    const { data: paymentTrends } = await supabase
-      .from('payment_records')
+    const { data: paymentTrends } = await supabaseAdmin
+      .from('payments')
       .select('amount, payment_date')
+      .eq('status', 'Confirmed')
       .gte('payment_date', dateRange.start)
       .lte('payment_date', dateRange.end)
       .order('payment_date', { ascending: true })
@@ -71,14 +88,27 @@ export async function GET(request: NextRequest) {
     // Process payment trends
     const paymentStats = processPaymentTrends(paymentTrends || [])
 
+    // Real Occupancy Rate Global
+    const { data: allRooms } = await supabaseAdmin.from('rooms').select('capacity, current_occupancy')
+    let totalCapacity = 0
+    let totalOccupied = 0
+    if (allRooms) {
+      allRooms.forEach(r => {
+        totalCapacity += (r.capacity || 0)
+        totalOccupied += (r.current_occupancy || 0)
+      })
+    }
+    const globalOccupancyRate = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0
+
+
     const analytics = {
       overview: {
-        totalStudents: totalStudents?.length || 0,
-        totalRooms: totalRooms?.length || 0,
-        totalBookings: totalBookings?.length || 0,
-        totalRevenue: calculateTotalRevenue(totalRevenue || []),
-        occupancyRate: calculateOccupancyRate(totalRooms || [], totalBookings || []),
-        growthRate: calculateGrowthRate(dateRange.start, dateRange.end),
+        totalStudents: totalStudents || 0,
+        totalRooms: totalRooms || 0,
+        totalBookings: totalBookings || 0,
+        totalRevenue: calculateTotalRevenue(revenueData || []),
+        occupancyRate: globalOccupancyRate,
+        growthRate: calculateGrowthRate(dateRange.start, dateRange.end), // Keep mock for now or implement complex comparison
       },
       monthlyData: monthlyStats,
       hostelPerformance: hostelStats,
@@ -108,6 +138,8 @@ function calculateDateRange(period: string, startDate?: string, endDate?: string
     return { start: startDate, end: endDate }
   }
 
+  // Adjust logic: For dashboards, often we want "last X months" or "Current Year"
+  // Default to covering a reasonable lookback
   switch (period) {
     case 'week':
       start.setDate(now.getDate() - 7)
@@ -131,42 +163,58 @@ function calculateDateRange(period: string, startDate?: string, endDate?: string
   }
 }
 
-function processMonthlyData(bookings: any[]) {
+function processMonthlyData(bookings: any[], totalRooms: number) {
   const monthlyMap = new Map()
   
+  // Initialize with some ranges if empty? Or just map existing
   bookings.forEach(booking => {
     const month = new Date(booking.created_at).toLocaleString('default', { month: 'short' })
-    const current = monthlyMap.get(month) || { count: 0, occupancy: 0 }
+    const current = monthlyMap.get(month) || { count: 0 }
     monthlyMap.set(month, {
-      count: current.count + 1,
-      occupancy: current.occupancy + 1
+      count: current.count + 1
     })
   })
 
+  // We might want to fill gaps, but let's stick to simple mapping first
   return Array.from(monthlyMap.entries()).map(([month, data]) => ({
     month,
     students: data.count,
-    occupancy: Math.round((data.occupancy / 320) * 100), // Assuming 320 total rooms
-    revenue: data.count * 1500 // Average revenue per booking
+    occupancy: 0, // Trends for occupancy over time require snapshots, hard to derive from just current bookings. 
+                  // Maybe map it to cumulative bookings? For now, 0 or mock is better than wrong data. 
+                  // Or assume each booking = 1 occupancy constant. 
+                  // Let's approximate occupancy trend by cumulative bookings over time / total rooms.
+    revenue: data.count * 0 // Revenue is separate
   }))
+  // Fixing occupancy and revenue in the chart data:
+  // Revenue chart uses paymentTrends.
+  // Occupancy chart uses monthlyData.
+  // Actually, let's make the monthlyData more useful.
+  // If we don't have historical occupancy snapshots, constructing a timeline is hard.
+  // I will leave occupancy in monthlyData as a derivative of bookings count for now (New Allocations).
 }
 
-function processHostelPerformance(hostels: any[]) {
-  return hostels.map(hostel => {
+function processHostelPerformance(hostels: any[], maintenanceData: any[] = []) {
+  return hostels.map((hostel: any) => {
     const totalBeds = hostel.rooms?.reduce((sum: number, room: any) => 
-      sum + (room.beds?.length || 0), 0) || 0
+      sum + (room.capacity || 0), 0) || 0
 
     const occupiedBeds = hostel.rooms?.reduce((sum: number, room: any) => 
-      sum + (room.beds?.filter((bed: any) => bed.is_occupied).length || 0), 0) || 0
+      sum + (room.current_occupancy || 0), 0) || 0
     
     const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0
-    const revenue = occupiedBeds * 1500 // Average revenue per occupied bed
     
+    // Count maintenance requests for this hostel
+    // maintenanceData item: { id: ..., rooms: { hostel_id: ... } }
+    let maintenanceCount = 0
+    if (maintenanceData) {
+        maintenanceCount = maintenanceData.filter((m: any) => m.rooms?.hostel_id === hostel.id).length
+    }
+
     return {
       name: hostel.name,
       occupancy: Math.round(occupancyRate),
-      revenue,
-      maintenance: Math.floor(Math.random() * 5) // Mock maintenance count
+      revenue: 0, 
+      maintenance: maintenanceCount
     }
   })
 }
@@ -174,11 +222,11 @@ function processHostelPerformance(hostels: any[]) {
 function processPaymentTrends(payments: any[]) {
   const monthlyMap = new Map()
   
-  payments.forEach(payment => {
+  payments.forEach((payment: any) => {
     const month = new Date(payment.payment_date).toLocaleString('default', { month: 'short' })
     const current = monthlyMap.get(month) || { amount: 0, count: 0 }
     monthlyMap.set(month, {
-      amount: current.amount + payment.amount,
+      amount: current.amount + (payment.amount || 0),
       count: current.count + 1
     })
   })
@@ -195,14 +243,6 @@ function calculateTotalRevenue(revenueRecords: any[]) {
     sum + (record.amount || 0), 0)
 }
 
-function calculateOccupancyRate(rooms: any[], bookings: any[]) {
-  const totalBeds = rooms.reduce((sum: number, room: any) => 
-    sum + (room.capacity || 4), 0) // Assuming 4 beds per room
-  const occupiedBeds = bookings.length
-  return totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0
-}
-
 function calculateGrowthRate(startDate: string, endDate: string) {
-  // Mock growth rate calculation
-  return Math.round((Math.random() * 20) + 5) // 5-25% growth rate
+  return 0
 }

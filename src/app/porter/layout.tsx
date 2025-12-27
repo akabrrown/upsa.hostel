@@ -1,23 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { 
   LayoutDashboard, 
   LogIn, 
-  LogOut as LogOutIcon, // Rename to avoid conflict
+  LogOut as LogOutIcon,
   Menu,
-  LogOut
+  LogOut,
+  Bell,
+  User
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '@/store/slices/authSlice'
 import { RootState } from '@/store'
+import { initPageAnimations } from '@/lib/animations'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 const porterNavigation = [
-  { name: 'Dashboard', href: '/porter/dashboard', icon: LayoutDashboard },
-  { name: 'Check-in', href: '/porter/checkin', icon: LogIn },
-  { name: 'Check-out', href: '/porter/checkout', icon: LogOutIcon },
+  { name: 'Control Center', href: '/porter/dashboard', icon: LayoutDashboard },
+  { name: 'Check-in Registry', href: '/porter/checkin', icon: LogIn },
+  { name: 'Check-out Log', href: '/porter/checkout', icon: LogOutIcon },
 ]
 
 export default function PorterLayout({
@@ -30,13 +34,20 @@ export default function PorterLayout({
   const router = useRouter()
   const { user } = useSelector((state: RootState) => state.auth)
 
+  useEffect(() => {
+    initPageAnimations()
+  }, [])
+
+  // Enable session timeout
+  useSessionTimeout()
+
   const handleLogout = () => {
     dispatch(logout())
     router.push('/login')
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#F8FAFC]">
       <Sidebar 
         navigation={porterNavigation} 
         userRole="Porter"
@@ -45,10 +56,11 @@ export default function PorterLayout({
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        {/* Modern Header */}
+        <header className="flex h-16 items-center gap-x-4 border-b border-slate-200/60 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 z-30">
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+            className="-m-2.5 p-2.5 text-slate-700 lg:hidden hover:bg-slate-50 rounded-xl transition-colors"
             onClick={() => setSidebarOpen(true)}
           >
             <span className="sr-only">Open sidebar</span>
@@ -58,16 +70,32 @@ export default function PorterLayout({
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1" />
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" aria-hidden="true" />
+              
+              {/* Notifications */}
+              <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-all relative">
+                 <Bell className="h-5 w-5" />
+                 <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full border-2 border-white" />
+              </button>
+
+              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-slate-200" aria-hidden="true" />
+              
               <div className="flex items-center gap-x-4 p-1">
-                 <span className="hidden lg:flex lg:items-center">
-                    <span className="text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
-                      {user?.firstName} {user?.lastName} (Porter)
+                 <div className="hidden lg:flex flex-col items-end">
+                    <span className="text-xs font-bold text-slate-900 leading-none">
+                      {user?.firstName} {user?.lastName}
                     </span>
-                 </span>
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">
+                      Personnel • Porter
+                    </span>
+                 </div>
+                 
+                 <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-blue-500/20">
+                    <User className="w-4 h-4" />
+                 </div>
+
                  <button 
                    onClick={handleLogout}
-                   className="text-gray-500 hover:text-gray-700"
+                   className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                    title="Logout"
                  >
                    <LogOut className="h-5 w-5" />
@@ -77,8 +105,10 @@ export default function PorterLayout({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 lg:p-8">
-          {children}
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+          <div className="h-full px-4 py-8 sm:px-6 lg:px-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

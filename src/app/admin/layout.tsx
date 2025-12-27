@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '@/store/slices/authSlice'
 import { RootState } from '@/store'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 const adminNavigation = [
   { name: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -42,6 +43,9 @@ export default function AdminLayout({
   const dispatch = useDispatch()
   const router = useRouter()
   const { user } = useSelector((state: RootState) => state.auth)
+
+  // Enable session timeout
+  useSessionTimeout()
 
   const handleLogout = () => {
     dispatch(logout())

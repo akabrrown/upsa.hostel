@@ -189,6 +189,13 @@ CREATE TABLE reservations (
     status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Cancelled', 'Expired')),
     admin_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Admin who approved/rejected
     admin_notes TEXT,
+    
+    -- Student Preferences
+    preferred_hostel_id UUID REFERENCES hostels(id),
+    preferred_floor_id UUID,
+    preferred_room_type_id UUID,
+    special_requests TEXT,
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

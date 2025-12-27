@@ -588,4 +588,4 @@ For component-related issues and questions:
 - Documentation: Available in project repository
 - Examples: Available in Storybook
 - Issues: Create GitHub issue
-- Contact: components@upsa.edu.gh
+- Contact: components@upsamail.edu.gh

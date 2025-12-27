@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { z } from 'zod'
 
 // Schema for profile update validation
@@ -28,8 +29,15 @@ const passwordChangeSchema = z.object({
 // GET /api/profile - Fetch user profile
 export async function GET(request: NextRequest) {
   try {
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get current user from cookie
+    const token = request.cookies.get('sb-access-token')?.value || 
+                  request.headers.get('Authorization')?.split(' ')[1]
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 })
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json(
@@ -40,39 +48,60 @@ export async function GET(request: NextRequest) {
 
     // Get user profile based on role
     const userRole = user.user_metadata?.role
-    // Get user profile data directly from profiles table
-    const { data: profileData, error: profileError } = await supabase
+    
+    // Get user profile data
+    const { data: profileData, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select(`
         *,
-        users(email, index_number),
-        roles(name),
-        accommodation:room_allocations(
-          id,
-          status,
-          room:rooms(
-            room_number,
-            room_type,
-            monthly_fee,
-            hostel:hostels(name, address)
-          ),
-          bed:beds(bed_number)
-        ),
-        bookings:room_bookings(
-          *,
-          hostels(name),
-          rooms(room_number)
-        ),
-        reservations:room_reservations(
-          *,
-          hostels(name),
-          room_types(name)
-        )
+        users(email, index_number, roles(name))
       `)
       .eq('user_id', user.id)
       .single()
 
     if (profileError) throw profileError
+
+    // Get accommodations separately (they're linked to users, not profiles)
+    const { data: accommodations } = await supabaseAdmin
+      .from('accommodations')
+      .select(`
+        id,
+        is_active,
+        bed_number,
+        room:rooms(
+          room_number,
+          room_type,
+          price_per_semester,
+          hostel:hostels(name, address)
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    // Get bookings
+    const { data: bookings } = await supabaseAdmin
+      .from('bookings')
+      .select(`
+        *,
+        room:rooms(room_number, hostel:hostels(name))
+      `)
+      .eq('user_id', user.id)
+
+    // Get reservations
+    const { data: reservations } = await supabaseAdmin
+      .from('reservations')
+      .select('*')
+      .eq('user_id', user.id)
+
+    // Get payments
+    const { data: payments } = await supabaseAdmin
+      .from('payments')
+      .select(`
+        *,
+        payment_methods(name)
+      `)
+      .eq('user_id', user.id)
+      .order('payment_date', { ascending: false })
 
     return NextResponse.json({
       data: {
@@ -82,7 +111,13 @@ export async function GET(request: NextRequest) {
           role: userRole,
           createdAt: user.created_at,
         },
-        profile: profileData,
+        profile: {
+          ...profileData,
+          accommodation: accommodations?.[0] || null, // Get first active accommodation
+          bookings: bookings || [],
+          reservations: reservations || [],
+          payments: payments || []
+        },
       },
     })
   } catch (error) {
@@ -97,8 +132,15 @@ export async function GET(request: NextRequest) {
 // PUT /api/profile - Update user profile
 export async function PUT(request: NextRequest) {
   try {
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get current user from cookie
+    const token = request.cookies.get('sb-access-token')?.value || 
+                  request.headers.get('Authorization')?.split(' ')[1]
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 })
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json(
@@ -136,7 +178,7 @@ export async function PUT(request: NextRequest) {
         }
 
         // Update profile in profiles table
-        const { data: profile, error } = await supabase
+        const { data: profile, error } = await supabaseAdmin
           .from('profiles')
           .update(updateData)
           .eq('user_id', user.id)

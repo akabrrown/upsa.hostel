@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { withRateLimit } from '@/lib/security/rateLimiting'
 import { z } from 'zod'
 
@@ -7,20 +8,16 @@ import { z } from 'zod'
 const announcementSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
   content: z.string().min(1, 'Content is required').max(5000, 'Content too long'),
-  category: z.enum(['general', 'payment', 'maintenance', 'academic', 'urgent']),
-  targetAudience: z.enum(['all', 'students', 'staff', 'admin', 'porter', 'director']),
+  category: z.enum(['general', 'payment', 'maintenance', 'academic', 'urgent', 'emergency']),
+  targetAudience: z.string().min(1, 'Target audience is required'),
   isActive: z.boolean().default(true),
-  scheduledFor: z.string().datetime().optional(),
+  priority: z.enum(['low', 'medium', 'high', 'emergency']).default('medium'),
+  scheduledFor: z.string().datetime().optional().nullable(),
 })
 
 // GET /api/announcements - Fetch announcements
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    
     // Parse query parameters
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -29,24 +26,36 @@ export async function GET(request: NextRequest) {
     const targetAudience = searchParams.get('targetAudience')
     const isActive = searchParams.get('isActive')
 
-    // Build query
-    let query = supabase
+    // Build query using admin client to bypass RLS on users table join
+    let query = supabaseAdmin
       .from('announcements')
       .select(`
         *,
-        creator:profiles(first_name, last_name, email)
+        author:users (
+          id,
+          email,
+          profile:profiles (
+            first_name,
+            last_name
+          )
+        )
       `)
       .order('created_at', { ascending: false })
 
     // Apply filters
     if (category) {
-      query = query.eq('category', category)
+      const dbCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
+      query = query.eq('category', dbCategory)
     }
     if (targetAudience) {
-      query = query.eq('target_audience', targetAudience)
+      const standardAudiences = ['all', 'students', 'staff', 'admin', 'porter', 'director']
+      const dbAudience = standardAudiences.includes(targetAudience.toLowerCase())
+        ? targetAudience.charAt(0).toUpperCase() + targetAudience.slice(1).toLowerCase()
+        : targetAudience // Probably a hostel ID
+      query = query.eq('target_audience', dbAudience)
     }
     if (isActive !== null) {
-      query = query.eq('is_active', isActive === 'true')
+      query = query.eq('is_published', isActive === 'true')
     }
 
     // Apply pagination
@@ -60,8 +69,35 @@ export async function GET(request: NextRequest) {
       throw error
     }
 
+    // Process to match frontend expectations
+    const processedData = announcements?.map((a: any) => {
+      // Supabase might return profile as an array or object depending on join cardinality
+      const profileResult = a.author?.profile
+      const profile = Array.isArray(profileResult) ? profileResult[0] : profileResult
+
+      const profilesMeta = a.author && profile ? {
+        first_name: profile.first_name || 'System',
+        last_name: profile.last_name || 'Admin',
+        email: a.author.email
+      } : {
+        first_name: 'System',
+        last_name: 'Admin',
+        email: 'admin@upsa.edu.gh'
+      }
+
+      return {
+        ...a,
+        status: a.is_published ? 'published' : 'draft',
+        scheduled_for: a.publication_date,
+        author: `${profilesMeta.first_name} ${profilesMeta.last_name}`,
+        creator: profilesMeta,
+        date: a.created_at,
+        category: a.category?.toLowerCase() || 'general'
+      }
+    })
+
     return NextResponse.json({
-      data: announcements,
+      data: processedData,
       pagination: {
         page,
         limit,
@@ -81,17 +117,19 @@ export async function GET(request: NextRequest) {
 // POST /api/announcements - Create new announcement
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get current user from cookie
+    const token = request.cookies.get('sb-access-token')?.value || 
+                  request.headers.get('Authorization')?.split(' ')[1]
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 })
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Invalid session' },
         { status: 401 }
       )
     }
@@ -110,12 +148,20 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = announcementSchema.parse(body)
 
-    // Create announcement
-    const { data: announcement, error } = await supabase
+    // Create announcement using admin client
+    const { data: announcement, error } = await supabaseAdmin
       .from('announcements')
       .insert({
-        ...validatedData,
-        creator_id: user.id,
+        title: validatedData.title,
+        content: validatedData.content,
+        category: validatedData.category.charAt(0).toUpperCase() + validatedData.category.slice(1).toLowerCase(),
+        target_audience: ['all', 'students', 'staff', 'admin', 'porter', 'director'].includes(validatedData.targetAudience.toLowerCase())
+          ? validatedData.targetAudience.charAt(0).toUpperCase() + validatedData.targetAudience.slice(1).toLowerCase()
+          : validatedData.targetAudience, // Preserve ID
+        is_published: validatedData.isActive,
+        author_id: user.id,
+        priority: validatedData.priority.charAt(0).toUpperCase() + validatedData.priority.slice(1).toLowerCase(),
+        publication_date: validatedData.scheduledFor || new Date().toISOString(),
         created_at: new Date().toISOString(),
       })
       .select()

@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { RootState } from '@/store'
-import { gsap } from 'gsap'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import { DataTable } from '@/components/ui/dataTable'
-import Badge from '@/components/ui/badge'
+import AnimatedStatCard from '@/components/admin/AnimatedStatCard'
+import ModernBadge from '@/components/admin/ModernBadge'
+import EmptyState from '@/components/admin/EmptyState'
 import { formatIndexNumber } from '@/lib/formatters'
-import { Search, Filter, Calendar, User, Building, CheckCircle, Clock, AlertCircle, Eye, Check, X, MoreVertical } from 'lucide-react'
+import { Search, Filter, Calendar, User, CheckCircle, Clock, AlertCircle, Eye, Check, X } from 'lucide-react'
 import { TableColumn } from '@/types'
+import { initPageAnimations } from '@/lib/animations'
 
 interface Reservation {
   id: string
@@ -26,8 +28,11 @@ interface Reservation {
   
   // Preferences
   preferredHostel: string
+  preferredHostelId: string
   preferredFloor: number
+  preferredFloorId: string
   preferredRoomType: string
+  preferredRoomTypeId: string
   
   // Allocation result
   allocatedHostel?: string
@@ -55,6 +60,15 @@ export default function AdminReservations() {
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [showAllocationModal, setShowAllocationModal] = useState(false)
   const [allocationNotes, setAllocationNotes] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [availableRooms, setAvailableRooms] = useState<any[]>([])
+  const [hostels, setHostels] = useState<any[]>([])
+  const [allocationForm, setAllocationForm] = useState({
+    hostelId: '',
+    floorNumber: '',
+    roomNumber: '',
+    bedNumber: ''
+  })
   
   const { user } = useSelector((state: RootState) => state.auth)
   const router = useRouter()
@@ -65,31 +79,38 @@ export default function AdminReservations() {
       return
     }
 
-    // Get reservations data from Redux store
-    const reservationsData: Reservation[] = []
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        const [resResponse, hostelsResponse] = await Promise.all([
+          fetch('/api/admin/allocator'),
+          fetch('/api/hostels')
+        ])
 
-    setTimeout(() => {
-      setReservations(reservationsData)
-      
-      // Animate page content
-      const tl = gsap.timeline()
-      
-      tl.fromTo('.page-header',
-        { opacity: 0, y: -30 },
-        { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
-      )
-      .fromTo('.stats-cards',
-        { opacity: 0, scale: 0.95 },
-        { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' },
-        '-=0.4'
-      )
-      .fromTo('.reservations-table',
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
-        '-=0.3'
-      )
-    }, 1000)
+        if (resResponse.ok) {
+          const data = await resResponse.json()
+          setReservations(data || [])
+        }
+
+        if (hostelsResponse.ok) {
+          const data = await hostelsResponse.json()
+          setHostels(data.hostels || [])
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
   }, [user, router])
+
+  useEffect(() => {
+    if (!isLoading) {
+      initPageAnimations(200)
+    }
+  }, [isLoading])
 
   const filteredReservations = reservations.filter(reservation => {
     const matchesSearch = 
@@ -104,15 +125,36 @@ export default function AdminReservations() {
     return matchesSearch && matchesStatus && matchesSemester
   })
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'danger' | 'neutral' => {
     switch (status) {
-      case 'allocated': return 'bg-green-100 text-green-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      case 'cancelled': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'allocated': return 'success'
+      case 'pending': return 'warning'
+      case 'rejected': return 'danger'
+      case 'cancelled': return 'neutral'
+      default: return 'neutral'
     }
   }
+
+  // Fetch available rooms when hostel or floor changes
+  useEffect(() => {
+    if (allocationForm.hostelId && allocationForm.floorNumber && showAllocationModal) {
+      const fetchRooms = async () => {
+        try {
+          const res = await fetch(`/api/rooms/available?hostelId=${allocationForm.hostelId}&floorNumber=${allocationForm.floorNumber}`)
+          if (res.ok) {
+            const data = await res.json()
+            setAvailableRooms(data.rooms || [])
+          }
+        } catch (error) {
+          console.error('Error fetching rooms:', error)
+          setAvailableRooms([])
+        }
+      }
+      fetchRooms()
+    } else {
+      setAvailableRooms([])
+    }
+  }, [allocationForm.hostelId, allocationForm.floorNumber, showAllocationModal])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -126,22 +168,55 @@ export default function AdminReservations() {
 
   const handleAllocateRoom = (reservation: Reservation) => {
     setSelectedReservation(reservation)
+    setAllocationForm({
+      hostelId: reservation.preferredHostelId || '',
+      floorNumber: reservation.preferredFloorId || '',
+      roomNumber: '',
+      bedNumber: ''
+    })
     setShowAllocationModal(true)
   }
 
-  const handleConfirmAllocation = () => {
-    // Handle room allocation logic
-    console.log('Allocating room for reservation:', selectedReservation?.id)
-    console.log('Allocation notes:', allocationNotes)
-    
-    // In real app, this would call the allocation algorithm
-    setShowAllocationModal(false)
-    setSelectedReservation(null)
-    setAllocationNotes('')
+  const handleConfirmAllocation = async () => {
+    if (!selectedReservation || !allocationForm.hostelId || !allocationForm.roomNumber) {
+      alert('Please select a hostel and room')
+      return
+    }
+
+    try {
+      console.log('Posting to /api/admin/allocator with:', allocationForm)
+      const response = await fetch('/api/admin/allocator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservationId: selectedReservation.id,
+          studentId: selectedReservation.studentId,
+          ...allocationForm,
+          notes: allocationNotes
+        })
+      })
+      console.log('Response status:', response.status)
+
+      if (response.ok) {
+        setShowAllocationModal(false)
+        setSelectedReservation(null)
+        setAllocationNotes('')
+        // Refresh reservations
+        const res = await fetch('/api/admin/allocator')
+        if (res.ok) {
+          const data = await res.json()
+          setReservations(data)
+        }
+      } else {
+        alert('Failed to allocate room')
+      }
+    } catch (error) {
+      console.error('Error allocating room:', error)
+      alert('Error allocating room')
+    }
   }
 
   const handleRejectReservation = (id: string) => {
-    // Handle reservation rejection
     console.log('Rejecting reservation:', id)
   }
 
@@ -221,12 +296,9 @@ export default function AdminReservations() {
       render: (value: string, row: Reservation) => {
         const StatusIcon = getStatusIcon(value)
         return (
-          <div className="flex items-center space-x-2">
-            <StatusIcon className="w-4 h-4" />
-            <Badge className={getStatusColor(value)}>
-              {value.charAt(0).toUpperCase() + value.slice(1)}
-            </Badge>
-          </div>
+          <ModernBadge variant={getStatusBadgeVariant(value)} icon={StatusIcon}>
+            {value.charAt(0).toUpperCase() + value.slice(1)}
+          </ModernBadge>
         )
       }
     },
@@ -293,6 +365,14 @@ export default function AdminReservations() {
     { id: 'cancelled', name: 'Cancelled' }
   ]
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="p-6">
@@ -314,53 +394,33 @@ export default function AdminReservations() {
           {/* Stats Cards */}
           <div className="stats-cards mb-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Reservations</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalReservations}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </Card>
+              <AnimatedStatCard
+                icon={Calendar}
+                label="Total Reservations"
+                value={totalReservations}
+                iconColor="blue"
+              />
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingReservations}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-yellow-600" />
-                  </div>
-                </div>
-              </Card>
+              <AnimatedStatCard
+                icon={Clock}
+                label="Pending"
+                value={pendingReservations}
+                iconColor="yellow"
+              />
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Allocated</p>
-                    <p className="text-2xl font-bold text-green-600">{allocatedReservations}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </Card>
+              <AnimatedStatCard
+                icon={CheckCircle}
+                label="Allocated"
+                value={allocatedReservations}
+                iconColor="green"
+              />
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Rejected</p>
-                    <p className="text-2xl font-bold text-red-600">{rejectedReservations}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                    <X className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-              </Card>
+              <AnimatedStatCard
+                icon={X}
+                label="Rejected"
+                value={rejectedReservations}
+                iconColor="red"
+              />
             </div>
           </div>
 
@@ -417,13 +477,21 @@ export default function AdminReservations() {
           {/* Reservations Table */}
           <div className="reservations-table">
             <Card className="overflow-hidden">
-              <DataTable
-                columns={columns}
-                data={filteredReservations}
-                pagination={true}
-                pageSize={10}
-                searchable={true}
-              />
+              {filteredReservations.length > 0 ? (
+                <DataTable
+                  columns={columns}
+                  data={filteredReservations}
+                  pagination={true}
+                  pageSize={10}
+                  searchable={true}
+                />
+              ) : (
+                <EmptyState
+                  icon={Calendar}
+                  title="No Reservations Found"
+                  description="No reservations match your current filters. Try adjusting your search criteria."
+                />
+              )}
             </Card>
           </div>
         </div>
@@ -498,12 +566,14 @@ export default function AdminReservations() {
                         Allocated Hostel
                       </label>
                       <select
-                        defaultValue={selectedReservation.preferredHostel}
+                        value={allocationForm.hostelId}
+                        onChange={(e) => setAllocationForm(p => ({ ...p, hostelId: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="Hostel A">Hostel A</option>
-                        <option value="Hostel B">Hostel B</option>
-                        <option value="Hostel C">Hostel C</option>
+                        <option value="">Select Hostel</option>
+                        {hostels.map(h => (
+                          <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
                       </select>
                     </div>
                     
@@ -512,13 +582,14 @@ export default function AdminReservations() {
                         Allocated Floor
                       </label>
                       <select
-                        defaultValue={selectedReservation.preferredFloor.toString()}
+                        value={allocationForm.floorNumber}
+                        onChange={(e) => setAllocationForm(p => ({ ...p, floorNumber: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="1">Floor 1</option>
-                        <option value="2">Floor 2</option>
-                        <option value="3">Floor 3</option>
-                        <option value="4">Floor 4</option>
+                        <option value="">Select Floor</option>
+                        {[1, 2, 3, 4, 5, 6].map(f => (
+                          <option key={f} value={f}>Floor {f}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -528,10 +599,19 @@ export default function AdminReservations() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Allocated Room
                       </label>
-                      <Input
-                        placeholder="Enter room number"
-                        className="w-full"
-                      />
+                      <select
+                        value={allocationForm.roomNumber}
+                        onChange={(e) => setAllocationForm(p => ({ ...p, roomNumber: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!availableRooms.length}
+                      >
+                        <option value="">Select Room</option>
+                        {availableRooms.map(room => (
+                          <option key={room.id} value={room.room_number}>
+                             {room.room_number} ({room.room_type}) - {room.capacity - room.current_occupancy} slots left
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     
                     <div>
@@ -541,6 +621,8 @@ export default function AdminReservations() {
                       <Input
                         placeholder="Enter bed number"
                         className="w-full"
+                        value={allocationForm.bedNumber}
+                        onChange={(e) => setAllocationForm(p => ({ ...p, bedNumber: e.target.value }))}
                       />
                     </div>
                   </div>

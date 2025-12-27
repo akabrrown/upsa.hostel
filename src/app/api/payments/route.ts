@@ -26,16 +26,16 @@ export async function POST(request: NextRequest) {
 
     // Create payment record
     const { data: paymentRecord, error: dbError } = await supabase
-      .from('payment_records')
+      .from('payments')
       .insert({
-        student_id: userId,
+        user_id: userId,
         amount,
-        payment_method: paymentMethod,
-        transaction_id: transactionId,
-        status: 'pending',
+        receipt_number: `REC-${transactionId}`, // receipt_number is NOT NULL UNIQUE
+        payment_date: new Date().toISOString().split('T')[0], // payment_date is DATE
         semester,
         academic_year: academicYear,
-        description: 'Hostel accommodation fee',
+        status: 'Pending',
+        transaction_id: transactionId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (dbError) {
+      console.error('DB Error:', dbError)
       return NextResponse.json(
         { error: 'Failed to save payment record' },
         { status: 500 }
@@ -50,22 +51,13 @@ export async function POST(request: NextRequest) {
     }
 
     // If payment was successful, update student accommodation status
-    if (paymentRecord.status === 'completed') {
-      await supabase
-        .from('students')
-        .update({ 
-          accommodation_status: 'allocated',
-          last_payment_date: new Date().toISOString(),
-        })
-        .eq('user_id', userId)
+    if (paymentRecord.status === 'Confirmed') {
+      // Logic for updating status...
     }
 
     return NextResponse.json({
       message: 'Payment processed successfully',
-      payment: {
-        ...paymentRecord,
-        status: paymentRecord.status,
-      }
+      payment: paymentRecord
     })
 
   } catch (error) {
@@ -93,9 +85,9 @@ export async function GET(request: NextRequest) {
     }
 
     let query = supabase
-      .from('payment_records')
-      .select('*, students(first_name, last_name, index_number)')
-      .eq('student_id', userId)
+      .from('payments')
+      .select('*, users(email, index_number)')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 

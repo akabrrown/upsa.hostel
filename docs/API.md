@@ -58,7 +58,7 @@ Authenticate user and create session.
 **Request Body:**
 ```json
 {
-  "email": "user@upsa.edu.gh",
+  "email": "user@upsamail.edu.gh",
   "password": "SecurePass123!",
   "role": "student|admin|porter|director"
 }
@@ -72,7 +72,7 @@ Authenticate user and create session.
   "data": {
     "user": {
       "id": "user_id",
-      "email": "user@upsa.edu.gh",
+      "email": "user@upsamail.edu.gh",
       "firstName": "John",
       "lastName": "Doe",
       "role": "student"
@@ -91,7 +91,7 @@ Register new user account.
   "firstName": "John",
   "lastName": "Doe",
   "indexNumber": "12345678",
-  "email": "john.doe@upsa.edu.gh",
+  "email": "john.doe@upsamail.edu.gh",
   "password": "SecurePass123!",
   "confirmPassword": "SecurePass123!",
   "programOfStudy": "Computer Science",
@@ -122,7 +122,7 @@ Request password reset email.
 **Request Body:**
 ```json
 {
-  "email": "user@upsa.edu.gh"
+  "email": "user@upsamail.edu.gh"
 }
 ```
 
@@ -165,7 +165,7 @@ Authorization: Bearer <session_token>
         "indexNumber": "12345678",
         "firstName": "John",
         "lastName": "Doe",
-        "email": "john.doe@upsa.edu.gh",
+        "email": "john.doe@upsamail.edu.gh",
         "programOfStudy": "Computer Science",
         "level": "200",
         "roomAllocation": "Hostel A - Room 101",
@@ -187,7 +187,7 @@ Create new student (Admin only).
   "firstName": "Jane",
   "lastName": "Smith",
   "indexNumber": "87654321",
-  "email": "jane.smith@upsa.edu.gh",
+  "email": "jane.smith@upsamail.edu.gh",
   "programOfStudy": "Business Administration",
   "level": "100",
   "phone": "+233123456789"
@@ -528,7 +528,7 @@ const loginResponse = await fetch('/api/auth/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    email: 'user@upsa.edu.gh',
+    email: 'user@upsamail.edu.gh',
     password: 'password',
     role: 'student'
   })
@@ -554,7 +554,7 @@ import requests
 
 # Login
 login_response = requests.post('http://localhost:3000/api/auth/login', json={
-    'email': 'user@upsa.edu.gh',
+    'email': 'user@upsamail.edu.gh',
     'password': 'password',
     'role': 'student'
 })
@@ -594,6 +594,6 @@ Version history:
 
 ## Support
 For API support and issues:
-- Email: api-support@upsa.edu.gh
+- Email: api-support@upsamail.edu.gh
 - Documentation: Available in project repository
 - Issue Tracker: GitHub repository issues

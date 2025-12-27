@@ -1,76 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
     // 1. Total Students
-    const { count: totalStudents, error: studentError } = await supabase
-      .from('students')
+    // First get student role ID
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('roles')
+      .select('id')
+      .eq('name', 'student')
+      .single()
+
+    if (roleError) throw roleError
+
+    const { count: totalStudents, error: studentError } = await supabaseAdmin
+      .from('users')
       .select('*', { count: 'exact', head: true })
+      .eq('role_id', roleData.id)
 
     if (studentError) throw studentError
 
     // 2. Occupancy Rate
-    const { count: totalBeds, error: bedsError } = await supabase
-      .from('beds')
-      .select('*', { count: 'exact', head: true })
+    // Get stats from rooms table
+    const { data: roomStats, error: roomError } = await supabaseAdmin
+      .from('rooms')
+      .select('capacity, current_occupancy')
 
-    if (bedsError) throw bedsError
+    if (roomError) throw roomError
 
-    const { count: occupiedBeds, error: occupiedError } = await supabase
-      .from('beds')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_occupied', true)
+    let totalCapacity = 0
+    let totalOccupied = 0
 
-    if (occupiedError) throw occupiedError
+    if (roomStats) {
+      roomStats.forEach(room => {
+        totalCapacity += room.capacity
+        totalOccupied += room.current_occupancy || 0
+      })
+    }
 
-    const occupancyRate = totalBeds && totalBeds > 0 
-      ? Math.round((Number(occupiedBeds) / Number(totalBeds)) * 100) 
+    const occupancyRate = totalCapacity > 0 
+      ? Math.round((totalOccupied / totalCapacity) * 100) 
       : 0
 
     // 3. Pending Payments
-    const { count: pendingPayments, error: paymentError } = await supabase
-      .from('payment_records')
+    const { count: pendingPayments, error: paymentError } = await supabaseAdmin
+      .from('payments')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
+      .eq('status', 'Pending')
 
     if (paymentError) throw paymentError
 
     // 4. Pending Applications
-    const { count: pendingBookings, error: bookingError } = await supabase
-      .from('room_bookings')
+    const { count: pendingBookings, error: bookingError } = await supabaseAdmin
+      .from('bookings')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
+      .eq('status', 'Pending')
 
     if (bookingError) throw bookingError
 
-    const { count: pendingReservations, error: reservationError } = await supabase
-      .from('room_reservations')
+    const { count: pendingReservations, error: reservationError } = await supabaseAdmin
+      .from('reservations')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
+      .eq('status', 'Pending')
 
     if (reservationError) throw reservationError
 
-    const pendingApplications = (Number(pendingBookings) || 0) + (Number(pendingReservations) || 0)
+    const pendingApplications = (pendingBookings || 0) + (pendingReservations || 0)
 
     // 5. Recent Activity (Latest 5 items from bookings or payments)
-    // For now, let's just get the latest students added
-    const { data: recentStudents, error: recentError } = await supabase
-      .from('students')
-      .select('id, first_name, last_name, created_at')
+    // Fetch recent students using profiles to get names
+    const { data: recentStudents, error: recentError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id, 
+        created_at,
+        profiles(first_name, last_name)
+      `)
+      .eq('role_id', roleData.id)
       .order('created_at', { ascending: false })
       .limit(5)
 
     if (recentError) throw recentError
 
-    const recentActivities = recentStudents?.map(s => ({
-      id: s.id,
-      type: 'student_added' as const,
-      description: `New student ${s.first_name} ${s.last_name} registered`,
-      timestamp: s.created_at,
-    })) || []
+    const recentActivities = recentStudents?.map(s => {
+       const profile = s.profiles && Array.isArray(s.profiles) ? s.profiles[0] : s.profiles
+       // Fallback for names if missing (handled by my previous fix on storage, but safe display here)
+       const name = profile ? `${profile.first_name || 'Student'} ${profile.last_name || ''}` : 'New Student'
+       
+       return {
+          id: s.id,
+          type: 'student_added' as const,
+          description: `New student ${name} registered`,
+          timestamp: s.created_at,
+       }
+    }) || []
 
     return NextResponse.json({
       totalStudents: totalStudents || 0,

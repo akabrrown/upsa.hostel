@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { loginSchema } from '@/lib/security/validation'
 import { authRateLimiter, getClientId } from '@/lib/security/rateLimiting'
+import { isAccountLocked, trackFailedLogin, clearFailedLoginAttempts, getClientIP } from '@/lib/security'
+
+const LOCKOUT_DURATION_MINUTES = 15
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +51,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if account is locked
+    const lockStatus = await isAccountLocked(email)
+    if (lockStatus.isLocked) {
+      return NextResponse.json(
+        { 
+          error: 'Account temporarily locked due to too many failed login attempts',
+          lockoutUntil: lockStatus.lockoutUntil,
+          message: `Please try again after ${lockStatus.lockoutUntil?.toLocaleTimeString()}`
+        },
+        { status: 423 } // 423 Locked
+      )
+    }
+
     // Authenticate with Supabase
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -55,11 +71,33 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
+      // Track failed login attempt
+      const ip = getClientIP(request)
+      const userAgent = request.headers.get('user-agent') || 'unknown'
+      const lockResult = await trackFailedLogin(email, ip, userAgent)
+      
+      if (lockResult.isLocked) {
+        return NextResponse.json(
+          { 
+            error: 'Account locked due to too many failed login attempts',
+            lockoutUntil: lockResult.lockoutUntil,
+            message: `Your account has been locked for ${LOCKOUT_DURATION_MINUTES} minutes`
+          },
+          { status: 423 }
+        )
+      }
+      
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { 
+          error: 'Invalid credentials',
+          attemptsRemaining: lockResult.attemptsRemaining
+        },
         { status: 401 }
       )
     }
+
+    // Clear failed login attempts on successful login
+    await clearFailedLoginAttempts(email)
 
     // Get user profile with role using Admin client to bypass RLS
     const { data: profile, error: profileError } = await supabaseAdmin

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Create service role client for admin operations
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,10 +48,15 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('isActive')
     const search = searchParams.get('search')
 
-    // Build query
+    // Build query with room counts
     let query = supabaseAdmin
       .from('hostels')
-      .select('*')
+      .select(`
+        *,
+        rooms (
+          *
+        )
+      `)
       .order('name', { ascending: true })
 
     // Apply filters
@@ -73,30 +81,33 @@ export async function GET(request: NextRequest) {
       throw error
     }
 
-    // Process hostels to include statistics and match About Hostel page structure
+    // Process hostels to match frontend interface
     const processedHostels = hostels?.map(hostel => {
-      // Generate mock data for demonstration since we don't have room relationships
-      const totalRooms = Math.floor(Math.random() * 20) + 10
-      const availableRooms = Math.floor(Math.random() * totalRooms)
-      const monthlyFee = Math.floor(Math.random() * 500) + 200
+      const rooms = (hostel.rooms as any[]) || []
+      const totalRooms = rooms.length
+      const totalBeds = rooms.reduce((sum: number, r: any) => sum + (r.capacity || 0), 0)
+      const occupiedBeds = rooms.reduce((sum: number, r: any) => sum + (r.current_occupancy || 0), 0)
       
       return {
         id: hostel.id,
         name: hostel.name,
-        description: hostel.description || 'Modern accommodation facility with excellent amenities',
-        address: hostel.address,
-        total_rooms: totalRooms,
-        available_rooms: availableRooms,
-        monthly_fee: monthlyFee,
-        amenities: hostel.amenities || ['WiFi', 'Security', 'Parking'],
-        images: [], // Can be added later
-        rating: 4.5, // Can be calculated from reviews later
+        code: hostel.code,
+        address: hostel.address || '',
+        totalFloors: hostel.total_floors || 1,
+        totalRooms,
+        totalBeds,
+        occupiedBeds,
+        availableBeds: totalBeds - occupiedBeds,
+        warden: hostel.warden_name || '',
+        contact: hostel.warden_phone || hostel.warden_email || '',
         status: hostel.is_active ? 'active' : 'inactive',
-        created_at: hostel.created_at,
-        // Additional fields for compatibility
-        totalRooms: totalRooms,
-        totalBeds: totalRooms * 2, // Assume 2 beds per room
-        floors: hostel.total_floors || 3,
+        createdAt: hostel.created_at,
+        pricePerSemester: hostel.room_pricing?.single || 0,
+        pricePerYear: (hostel.room_pricing?.single || 0) * 2,
+        gender: (hostel.gender?.charAt(0).toUpperCase() + hostel.gender?.slice(1)) as 'Male' | 'Female' | 'Mixed',
+        amenities: hostel.amenities || [],
+        description: hostel.description || '',
+        roomPricing: hostel.room_pricing || { single: 0, double: 0, quadruple: 0 }
       }
     })
 
@@ -180,11 +191,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Generate hostel code from name (first 3-4 letters uppercase + random number)
+    const codeBase = validatedData.name
+      .replace(/[^a-zA-Z]/g, '')
+      .substring(0, 4)
+      .toUpperCase()
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+    const hostelCode = `${codeBase}${randomNum}`
+
     // Create hostel
     const { data: hostel, error } = await supabaseAdmin
       .from('hostels')
       .insert({
         name: validatedData.name,
+        code: hostelCode,
         address: validatedData.address,
         description: validatedData.description,
         gender: validatedData.gender,
@@ -204,20 +224,8 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
-    // Create floors for the hostel
-    const floors = Array.from({ length: validatedData.totalFloors }, (_, i) => ({
-      hostel_id: hostel.id,
-      floor_number: i + 1,
-      created_at: new Date().toISOString(),
-    }))
-
-    const { error: floorsError } = await supabaseAdmin
-      .from('floors')
-      .insert(floors)
-
-    if (floorsError) {
-      throw floorsError
-    }
+    // Floors are implicitly handled by total_floors and room assignments
+    // No separate floors table insertion needed
 
     return NextResponse.json({
       message: 'Hostel created successfully',
@@ -227,6 +235,7 @@ export async function POST(request: NextRequest) {
     console.error('Error creating hostel:', error)
     
     if (error instanceof z.ZodError) {
+      console.error('Zod validation errors:', JSON.stringify(error.errors, null, 2))
       return NextResponse.json(
         { error: 'Validation failed', details: error.errors },
         { status: 400 }
@@ -278,7 +287,7 @@ export async function PUT(request: NextRequest) {
     const validatedData = hostelSchema.partial().parse(body)
 
     // Update hostel
-    const { data: hostel, error } = await supabase
+    const { data: hostel, error } = await supabaseAdmin
       .from('hostels')
       .update({
         ...validatedData,
@@ -346,7 +355,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if hostel has occupied rooms
-    const { data: occupiedRooms, error: checkError } = await supabase
+    const { data: occupiedRooms, error: checkError } = await supabaseAdmin
       .from('rooms')
       .select(`
         beds(
@@ -375,7 +384,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete in order: beds -> rooms -> floors -> hostel (foreign key constraints)
     // First get all room IDs for this hostel
-    const { data: roomIds, error: roomIdsError } = await supabase
+    const { data: roomIds, error: roomIdsError } = await supabaseAdmin
       .from('rooms')
       .select('id')
       .eq('hostel_id', hostelId)
@@ -385,7 +394,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete beds for these rooms
-    const { error: bedsError } = await supabase
+    const { error: bedsError } = await supabaseAdmin
       .from('beds')
       .delete()
       .in('room_id', roomIds?.map(room => room.id) || [])
@@ -394,7 +403,7 @@ export async function DELETE(request: NextRequest) {
       throw bedsError
     }
 
-    const { error: roomsError } = await supabase
+    const { error: roomsError } = await supabaseAdmin
       .from('rooms')
       .delete()
       .eq('hostel_id', hostelId)
@@ -403,7 +412,7 @@ export async function DELETE(request: NextRequest) {
       throw roomsError
     }
 
-    const { error: floorsError } = await supabase
+    const { error: floorsError } = await supabaseAdmin
       .from('floors')
       .delete()
       .eq('hostel_id', hostelId)
@@ -413,7 +422,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete hostel
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('hostels')
       .delete()
       .eq('id', hostelId)

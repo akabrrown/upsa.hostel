@@ -7,9 +7,9 @@ import { RootState } from '@/store'
 import { gsap } from 'gsap'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { formatIndexNumber } from '@/lib/formatters'
-import { User, Users, MessageSquare, MessageCircle, Phone, MapPin, Calendar, Book, Mail } from 'lucide-react'
+import { Users, MessageCircle, Phone, Mail } from 'lucide-react'
+import ChatDrawer from '@/components/chat/ChatDrawer'
 
 interface Roommate {
   id: string
@@ -22,15 +22,17 @@ interface Roommate {
   profileImage?: string
   bedNumber: string
   checkInDate: string
-  hometown: string
-  hobbies: string[]
   isAvailable: boolean
+  isMe?: boolean
+  unreadCount?: number
 }
 
 export default function RoommateDetails() {
   const [roommates, setRoommates] = useState<Roommate[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [roomInfo, setRoomInfo] = useState<{ roomNumber: string, hostelName: string } | null>(null)
   const [selectedRoommate, setSelectedRoommate] = useState<Roommate | null>(null)
+  const [isChatOpen, setIsChatOpen] = useState(false)
   
   const { user } = useSelector((state: RootState) => state.auth)
   const router = useRouter()
@@ -41,14 +43,30 @@ export default function RoommateDetails() {
       return
     }
 
-    // Get roommates data from Redux store
-    const roommatesData: Roommate[] = []
+    const fetchRoommates = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/roommates')
+        const data = await response.json()
+        
+        if (response.ok) {
+          setRoommates(data.roommates || [])
+          setRoomInfo(data.roomInfo)
+        }
+      } catch (error) {
+        console.error('Failed to fetch roommates:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    setTimeout(() => {
-      setRoommates(roommatesData)
-      setIsLoading(false)
-      
-      // Animate page content
+    fetchRoommates()
+  }, [user, router])
+
+  useEffect(() => {
+    if (isLoading) return
+
+    const ctx = gsap.context(() => {
       const tl = gsap.timeline()
       
       tl.fromTo('.page-header',
@@ -60,12 +78,14 @@ export default function RoommateDetails() {
         { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
         '-=0.4'
       )
-    }, 1000)
-  }, [user, router])
+    })
 
-  const handleSendMessage = (roommateId: string) => {
-    // Handle message functionality
-    console.log('Send message to roommate:', roommateId)
+    return () => ctx.revert()
+  }, [isLoading])
+
+  const handleSendMessage = (roommate: Roommate) => {
+    setSelectedRoommate(roommate)
+    setIsChatOpen(true)
   }
 
   const handleCall = (phoneNumber: string) => {
@@ -96,7 +116,7 @@ export default function RoommateDetails() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Roommate Details</h1>
                 <p className="text-gray-600">
-                  View information about your roommates in Hostel A, Room 201
+                  {roomInfo ? `View information about your roommates in ${roomInfo.hostelName}, Room ${roomInfo.roomNumber}` : 'View information about your roommates'}
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -109,121 +129,92 @@ export default function RoommateDetails() {
           {/* Roommate Cards */}
           <div className="roommate-cards grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {roommates.map((roommate) => (
-              <Card key={roommate.id} className="overflow-hidden">
-                {/* Roommate Header */}
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
-                      <User className="w-8 h-8 text-blue-500" />
+              <div 
+                key={roommate.id} 
+                className="group relative bg-white rounded-2xl p-6 shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden"
+              >
+                {/* Decorative Background Element */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 transition-transform duration-500 group-hover:scale-150 group-hover:bg-blue-100/50" />
+                
+                {/* Header Section */}
+                <div className="relative flex items-start justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white text-xl font-bold">
+                        {roommate.name.charAt(0)}
+                      </div>
                     </div>
-                    <div className="text-white">
-                      <h3 className="font-semibold text-lg">{roommate.name}</h3>
-                      <p className="text-blue-100 text-sm">{roommate.bedNumber}</p>
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900 leading-tight">
+                        {roommate.name}
+                        {roommate.isMe && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                            YOU
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-sm text-gray-500 font-medium mt-0.5">{roommate.program}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{roommate.indexNumber}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Roommate Info */}
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {/* Academic Info */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Academic Information</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <Book className="w-4 h-4 text-gray-400" />
-                          <span>{roommate.program}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span>{roommate.yearOfStudy}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span>{formatIndexNumber(roommate.indexNumber)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Contact Info */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Contact Information</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <Mail className="w-4 h-4 text-gray-400" />
-                          <span className="text-blue-600 hover:underline cursor-pointer" 
-                                onClick={() => handleEmail(roommate.email)}>
-                            {roommate.email}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          <span className="text-blue-600 hover:underline cursor-pointer"
-                                onClick={() => handleCall(roommate.phone)}>
-                            {roommate.phone}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span>{roommate.hometown}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Personal Info */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Personal Information</h4>
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="text-gray-600">Check-in Date: </span>
-                          <span>{new Date(roommate.checkInDate).toLocaleDateString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Hobbies: </span>
-                          <span>{roommate.hobbies.join(', ')}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-gray-600">Status: </span>
-                          <Badge className={roommate.isAvailable ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {roommate.isAvailable ? 'Available' : 'Away'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
+                {/* Info Grid */}
+                <div className="relative grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-3 rounded-xl bg-gray-50 group-hover:bg-blue-50/30 transition-colors">
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">Bed No.</p>
+                    <p className="font-bold text-gray-900">{roommate.bedNumber}</p>
                   </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-6 space-y-3">
-                    <Button 
-                      className="w-full"
-                      onClick={() => handleSendMessage(roommate.id)}
-                      disabled={!roommate.isAvailable}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      {roommate.isAvailable ? 'Send Message' : 'Currently Away'}
-                    </Button>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleCall(roommate.phone)}
-                      >
-                        <Phone className="w-4 h-4 mr-1" />
-                        Call
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleEmail(roommate.email)}
-                      >
-                        <Mail className="w-4 h-4 mr-1" />
-                        Email
-                      </Button>
-                    </div>
+                  <div className="p-3 rounded-xl bg-gray-50 group-hover:bg-blue-50/30 transition-colors">
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">Level</p>
+                    <p className="font-bold text-gray-900">{roommate.yearOfStudy}</p>
                   </div>
                 </div>
-              </Card>
+
+                {/* Contact Actions */}
+                <div className="relative space-y-3">
+                  {!roommate.isMe ? (
+                    <>
+                      <Button 
+                        className="w-full bg-gray-900 hover:bg-gray-800 text-white shadow-lg shadow-gray-900/10 group-hover:shadow-gray-900/20 transition-all rounded-xl"
+                        onClick={() => handleSendMessage(roommate)}
+                        disabled={!roommate.isAvailable}
+                      >
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        {roommate.isAvailable ? 'Send Message' : 'Currently Away'}
+                        {roommate.unreadCount ? (
+                          <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 border-2 border-white text-xs font-bold text-white flex items-center justify-center shadow-sm">
+                            {roommate.unreadCount > 9 ? '9+' : roommate.unreadCount}
+                          </span>
+                        ) : null}
+                      </Button>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => handleCall(roommate.phone)}
+                          className="flex items-center justify-center px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 transition-all text-sm font-medium"
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Call
+                        </button>
+                        <button 
+                          onClick={() => handleEmail(roommate.email)}
+                          className="flex items-center justify-center px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 transition-all text-sm font-medium"
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Email
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full py-3 px-4 rounded-xl bg-gray-50 border border-gray-100 text-center">
+                      <p className="text-sm font-medium text-gray-500">
+                        This is your card
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
 
@@ -242,6 +233,15 @@ export default function RoommateDetails() {
           )}
         </div>
       </div>
+      <ChatDrawer 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        recipient={selectedRoommate ? {
+          id: selectedRoommate.id,
+          name: selectedRoommate.name,
+          status: selectedRoommate.isAvailable ? 'online' : 'offline'
+        } : null} 
+      />
     </div>
   )
 }

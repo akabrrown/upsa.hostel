@@ -7,6 +7,9 @@ import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { RootState } from '@/store'
 import Button from '@/components/ui/button'
+import { hostelApi, roomApi, handleApiError } from '@/lib/api'
+import { toast } from 'react-hot-toast'
+import { AlertCircle, Info } from 'lucide-react'
 
 interface Hostel {
   id: string
@@ -35,8 +38,6 @@ const ReservationSchema = Yup.object().shape({
   hostelId: Yup.string().required('Hostel selection is required'),
   floorId: Yup.string().required('Floor selection is required'),
   roomTypeId: Yup.string().required('Room type selection is required'),
-  academicYear: Yup.string().required('Academic year is required'),
-  semester: Yup.string().required('Semester is required'),
   specialRequests: Yup.string().optional(),
 })
 
@@ -48,8 +49,10 @@ export default function RoomReservation() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [reservationSuccess, setReservationSuccess] = useState(false)
+  const [reservationEnabled, setReservationEnabled] = useState(true)
+  const [hasRoom, setHasRoom] = useState(false)
   
-  const { user } = useSelector((state: RootState) => state.auth)
+  const { user, profileFetched } = useSelector((state: RootState) => state.auth)
   const router = useRouter()
 
   const formik = useFormik({
@@ -66,11 +69,20 @@ export default function RoomReservation() {
       setIsSubmitting(true)
       
       try {
-        // Mock API call - in real app, this would submit to Supabase
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        await roomApi.reserve({
+          hostelId: values.hostelId,
+          floorId: values.floorId,
+          roomTypeId: values.roomTypeId,
+          academicYear: values.academicYear,
+          semester: values.semester,
+          specialRequests: values.specialRequests,
+        })
         
+        toast.success('Reservation submitted successfully!')
         setReservationSuccess(true)
       } catch (error) {
+        const message = handleApiError(error, 'Reservation failed')
+        toast.error(message)
         console.error('Reservation failed:', error)
       } finally {
         setIsSubmitting(false)
@@ -79,27 +91,81 @@ export default function RoomReservation() {
   })
 
   useEffect(() => {
-    if (!user || user.role !== 'student') {
+    if (profileFetched && (!user || user.role !== 'student')) {
       router.push('/login')
       return
     }
 
-    // In real app, this would come from API
-    const hostelsData: Hostel[] = []
-    const floorsData: Floor[] = []
-    const roomTypesData: RoomType[] = []
+    const fetchInitialData = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Fetch system settings
+        const settingsResponse = await fetch('/api/settings')
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json()
+          if (settingsData.data) {
+            setReservationEnabled(settingsData.data.reservation_enabled === true)
+            
+            if (settingsData.data.current_academic_year) {
+              formik.setFieldValue('academicYear', settingsData.data.current_academic_year)
+            }
+            if (settingsData.data.current_semester) {
+              formik.setFieldValue('semester', settingsData.data.current_semester)
+            }
+          }
+        }
 
-    setHostels(hostelsData)
-    setFloors(floorsData)
-    setRoomTypes(roomTypesData)
-    setIsLoading(false)
-  }, [user, router])
+        // Check if user already has a room or pending reservation
+        if (user) {
+          const hasActiveAcc = user.accommodationStatus === 'allocated' || user.accommodationStatus === 'pending'
+          const hasPendingBooking = (user.bookings || []).some((b: any) => b.status === 'Pending' || b.status === 'Approved')
+          const hasPendingRes = (user.reservations || []).some((r: any) => r.status === 'Pending' || r.status === 'Approved')
+          
+          if (hasActiveAcc || hasPendingBooking || hasPendingRes) {
+            setHasRoom(true)
+          }
+        }
 
-  const handleHostelChange = (hostelId: string) => {
+        const response: any = await hostelApi.getAll()
+        setHostels(response.hostels || [])
+      } catch (error) {
+        toast.error('Failed to load initial data')
+        console.error('Error fetching initial data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchInitialData()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleHostelChange = async (hostelId: string) => {
     formik.setFieldValue('hostelId', hostelId)
     formik.setFieldValue('floorId', '')
-    if (currentStep === 1) {
-      setCurrentStep(2)
+    formik.setFieldValue('roomTypeId', '')
+    
+    try {
+      const response: any = await hostelApi.getFloors(hostelId)
+      setFloors(response.floors || [])
+      
+      // Also set room types based on hostel pricing
+      const selectedHostel = hostels.find(h => h.id === hostelId)
+      if (selectedHostel && (selectedHostel as any).roomPricing) {
+        const pricing = (selectedHostel as any).roomPricing
+        const types: RoomType[] = [
+          { id: 'single', name: 'Single Room', capacity: 1, pricePerSemester: pricing.single, description: 'Private room' },
+          { id: 'double', name: 'Double Room', capacity: 2, pricePerSemester: pricing.double, description: 'Shared with 1 person' },
+          { id: 'quadruple', name: 'Quadruple Room', capacity: 4, pricePerSemester: pricing.quadruple, description: 'Shared with 3 people' }
+        ].filter(t => t.pricePerSemester > 0)
+        setRoomTypes(types)
+      }
+
+      if (currentStep === 1) {
+        setCurrentStep(2)
+      }
+    } catch (error) {
+      toast.error('Failed to load floors')
     }
   }
 
@@ -145,6 +211,50 @@ export default function RoomReservation() {
   const selectedHostel = hostels.find(h => h.id === formik.values.hostelId)
   const selectedFloor = floors.find(f => f.id === formik.values.floorId)
   const selectedRoomType = roomTypes.find(rt => rt.id === formik.values.roomTypeId)
+
+  if (hasRoom) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center animate-fade-in-up">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Info className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">Room Already Assigned</h2>
+          <p className="text-gray-600 mb-8 text-lg">
+            You already have an active room allocation or a pending booking/reservation. You cannot reserve another room at this time.
+          </p>
+          <Button 
+            onClick={() => router.push('/student/dashboard')}
+            className="w-full py-3 text-lg font-medium"
+          >
+            Go to Dashboard
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!reservationEnabled) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">System Closed</h2>
+          <p className="text-gray-600 mb-8 text-lg">
+            The room reservation system is currently closed. Please check back later or contact administration.
+          </p>
+          <Button 
+            onClick={() => router.push('/student/dashboard')}
+            className="w-full py-3"
+          >
+            Back to Dashboard
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   if (reservationSuccess) {
     return (
@@ -297,33 +407,9 @@ export default function RoomReservation() {
                         <p><strong>Floor:</strong> Floor {selectedFloor?.floorNumber}</p>
                         <p><strong>Room Type:</strong> {selectedRoomType?.name}</p>
                         <p><strong>Price:</strong> GHS {selectedRoomType?.pricePerSemester} per semester</p>
+                        <p><strong>Academic Year:</strong> {formik.values.academicYear}</p>
+                        <p><strong>Semester:</strong> {formik.values.semester}</p>
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Academic Year
-                      </label>
-                      <select
-                        {...formik.getFieldProps('academicYear')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="2023/2024">2023/2024</option>
-                        <option value="2024/2025">2024/2025</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Semester
-                      </label>
-                      <select
-                        {...formik.getFieldProps('semester')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="First Semester">First Semester</option>
-                        <option value="Second Semester">Second Semester</option>
-                      </select>
                     </div>
 
                     <div>

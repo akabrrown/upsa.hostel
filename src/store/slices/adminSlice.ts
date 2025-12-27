@@ -21,12 +21,36 @@ interface Student {
 
 interface AdminState {
   students: Student[]
+  stats: {
+    total: number
+    allocated: number
+    unallocated: number
+    overdue: number
+  }
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
   loading: boolean
   error: string | null
 }
 
 const initialState: AdminState = {
   students: [],
+  stats: {
+    total: 0,
+    allocated: 0,
+    unallocated: 0,
+    overdue: 0,
+  },
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  },
   loading: false,
   error: null,
 }
@@ -40,7 +64,7 @@ export const fetchStudents = createAsyncThunk(
       const data = await response.json()
       
       if (response.ok) {
-        return data.students || []
+        return data
       } else {
         return rejectWithValue(data.error || 'Failed to fetch students')
       }
@@ -67,7 +91,13 @@ export const adminSlice = createSlice({
       })
       .addCase(fetchStudents.fulfilled, (state, action) => {
         state.loading = false
-        state.students = action.payload
+        if (action.payload.students) {
+          state.students = action.payload.students
+          state.stats = action.payload.stats || state.stats
+          state.pagination = action.payload.pagination || state.pagination
+        } else {
+          state.students = action.payload
+        }
       })
       .addCase(fetchStudents.rejected, (state, action) => {
         state.loading = false

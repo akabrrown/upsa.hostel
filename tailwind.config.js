@@ -41,6 +41,15 @@ module.exports = {
         'responsive-5xl': ['clamp(2.25rem, 7vw, 3rem)', { lineHeight: '1.1' }],
         'responsive-6xl': ['clamp(3rem, 8vw, 4rem)', { lineHeight: '1.1' }],
       },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+      },
+      keyframes: {
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
       screens: {
         'xs': '475px',
         '3xl': '1600px',

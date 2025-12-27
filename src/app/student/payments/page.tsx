@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import { useSelector } from 'react-redux'
 import { RootState } from '@/store'
 import { gsap } from 'gsap'
-import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
-import Badge from '@/components/ui/badge'
-import Input from '@/components/ui/input'
-import { Calendar, CreditCard, AlertCircle, CheckCircle, Clock, DollarSign, FileText, Download, Search, Filter } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Calendar, CreditCard, AlertCircle, CheckCircle2, Clock, Wallet, History, Search, Filter, ArrowUpRight, Download } from 'lucide-react'
 import apiClient from '@/lib/api'
+import { toast } from 'react-hot-toast'
 
 interface Payment {
   id: number
@@ -31,7 +30,8 @@ export default function StudentPayments() {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
-  const [selectedPayment, setSelectedPayment] = useState(null)
+
+  const { user } = useSelector((state: RootState) => state.auth)
 
   const loadPayments = async () => {
     setLoading(true)
@@ -47,30 +47,28 @@ export default function StudentPayments() {
   }
 
   useEffect(() => {
-    // Animate page elements
-    gsap.from('.payments-card', {
-      opacity: 0,
-      y: 20,
-      duration: 0.6,
-      ease: 'power3.out',
-      stagger: 0.1
-    })
-
     loadPayments()
-
-    // Animate summary and list
-    const tl = gsap.timeline()
-    tl.fromTo('.payment-summary',
-      { opacity: 0, scale: 0.95 },
-      { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' },
-      '-=0.4'
-    )
-    .fromTo('.payment-list',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
-      '-=0.3'
-    )
   }, [])
+
+  useEffect(() => {
+    if (!loading) {
+      const ctx = gsap.context(() => {
+        gsap.fromTo('.page-header',
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
+        )
+        gsap.fromTo('.stat-card',
+          { opacity: 0, scale: 0.95 },
+          { opacity: 1, scale: 1, duration: 0.5, stagger: 0.1, delay: 0.2, ease: 'power3.out' }
+        )
+        gsap.fromTo('.payment-card',
+          { opacity: 0, x: -20 },
+          { opacity: 1, x: 0, duration: 0.5, stagger: 0.1, delay: 0.4, ease: 'power3.out' }
+        )
+      })
+      return () => ctx.revert()
+    }
+  }, [loading])
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = 
@@ -83,21 +81,12 @@ export default function StudentPayments() {
     return matchesSearch && matchesStatus
   })
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'paid': return 'text-green-600 bg-green-100'
-      case 'pending': return 'text-yellow-600 bg-yellow-100'
-      case 'overdue': return 'text-red-600 bg-red-100'
-      default: return 'text-gray-600 bg-gray-100'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'paid': return CheckCircle
-      case 'pending': return Clock
-      case 'overdue': return AlertCircle
-      default: return Clock
+      case 'paid': return { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: CheckCircle2 }
+      case 'pending': return { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', icon: Clock }
+      case 'overdue': return { color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', icon: AlertCircle }
+      default: return { color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', icon: History }
     }
   }
 
@@ -106,173 +95,179 @@ export default function StudentPayments() {
   const totalOverdue = payments.filter(p => p.status === 'overdue').reduce((sum, p) => sum + p.amount, 0)
 
   const handlePayment = (paymentId: number) => {
-    // Handle payment logic
-    console.log('Processing payment for:', paymentId)
+    toast.success('Redirecting to payment gateway...')
+    // Implement actual payment gateway integration here
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/50 pb-12">
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
-        <div className="page-header mb-8">
-          <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 pt-8 pb-12 px-6 page-header">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Payment History</h1>
-              <p className="text-gray-600 mt-1">View and manage your hostel payments</p>
+              <div className="flex items-center gap-3 mb-3">
+                 <div className="p-2 bg-indigo-50 rounded-lg">
+                   <Wallet className="w-6 h-6 text-indigo-600" />
+                 </div>
+                 <span className="text-indigo-600 font-semibold uppercase tracking-wider text-sm">Finances</span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Center</h1>
+              <p className="text-gray-500 max-w-xl">
+                Manage your payments, view history, and download receipts securely.
+              </p>
             </div>
-            <Button>
-              <CreditCard className="w-4 h-4 mr-2" />
-              Make Payment
-            </Button>
+            <div className="flex gap-3">
+              <Button className="shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Make Payment
+              </Button>
+            </div>
+          </div>
+
+          {/* Payment Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+            <div className="stat-card bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <CheckCircle2 className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-emerald-100 text-xs font-bold uppercase tracking-wider">Total Paid</span>
+              </div>
+              <div className="text-3xl font-bold mb-1">GHS {totalPaid.toLocaleString()}</div>
+              <div className="text-emerald-100 text-sm opacity-90">Fully settled payments</div>
+            </div>
+
+            <div className="stat-card bg-white rounded-2xl p-6 border border-amber-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-bl-full -mr-4 -mt-4 opacity-50"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Clock className="w-6 h-6 text-amber-600" />
+                </div>
+                <span className="text-amber-600 text-xs font-bold uppercase tracking-wider bg-amber-50 px-2 py-1 rounded-full">Pending</span>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1 relative z-10">GHS {totalPending.toLocaleString()}</div>
+              <div className="text-gray-500 text-sm relative z-10">Outstanding balance</div>
+            </div>
+
+            <div className="stat-card bg-white rounded-2xl p-6 border border-rose-100 shadow-sm relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 opacity-50"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="p-2 bg-rose-50 rounded-lg">
+                  <AlertCircle className="w-6 h-6 text-rose-600" />
+                </div>
+                <span className="text-rose-600 text-xs font-bold uppercase tracking-wider bg-rose-50 px-2 py-1 rounded-full">Overdue</span>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1 relative z-10">GHS {totalOverdue.toLocaleString()}</div>
+              <div className="text-gray-500 text-sm relative z-10">Requires immediate attention</div>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Payment Summary */}
-        <div className="payment-summary mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <CreditCard className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900">${totalPaid.toLocaleString()}</h3>
-              <p className="text-gray-600">Total Paid</p>
-            </Card>
-
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-yellow-600">${totalPending.toLocaleString()}</h3>
-              <p className="text-gray-600">Pending</p>
-            </Card>
-
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-red-600">${totalOverdue.toLocaleString()}</h3>
-              <p className="text-gray-600">Overdue</p>
-            </Card>
-
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-green-600">
-                {payments.filter(p => p.status === 'paid').length}
-              </h3>
-              <p className="text-gray-600">Payments Made</p>
-            </Card>
+      <div className="max-w-7xl mx-auto px-6 -mt-6">
+        {/* Search and List */}
+        <div className="bg-white p-4 rounded-xl shadow-lg shadow-gray-200/50 border border-gray-100 mb-8 flex flex-col md:flex-row gap-4 page-header relative z-10">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search payments by description or reference..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+            />
           </div>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="mb-8">
-          <Card className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search payments..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Filter className="w-4 h-4 text-gray-500" />
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="paid">Paid</option>
-                    <option value="pending">Pending</option>
-                    <option value="overdue">Overdue</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="text-sm text-gray-600">
-                Showing {filteredPayments.length} payments
-              </div>
-            </div>
-          </Card>
+          <div className="md:w-48 relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm appearance-none cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
         </div>
 
         {/* Payment List */}
-        <div className="payment-list">
+        <div className="space-y-4">
           {filteredPayments.length > 0 ? (
-            <div className="space-y-4">
-              {filteredPayments.map((payment, index) => {
-                const StatusIcon = getStatusIcon(payment.status)
-                return (
-                  <Card key={payment.id} className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          payment.status === 'paid' ? 'bg-green-100' : 
-                          payment.status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
-                        }`}>
-                          <StatusIcon className={`w-5 h-5 ${
-                            payment.status === 'paid' ? 'text-green-600' : 
-                            payment.status === 'pending' ? 'text-yellow-600' : 'text-red-600'
-                          }`} />
+            filteredPayments.map((payment) => {
+               const statusConfig = getStatusConfig(payment.status)
+               const StatusIcon = statusConfig.icon
+               return (
+                  <div key={payment.id} className="group payment-card bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-start gap-4">
+                        <div className={`p-3 rounded-xl ${statusConfig.bg}`}>
+                          <StatusIcon className={`w-6 h-6 ${statusConfig.color}`} />
                         </div>
-                        
                         <div>
-                          <h3 className="font-semibold text-gray-900">{payment.type}</h3>
-                          <p className="text-sm text-gray-600">{payment.description}</p>
-                          <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                            <span className="flex items-center space-x-1">
-                              <Calendar className="w-3 h-3" />
-                              <span>Due: {new Date(payment.dueDate).toLocaleDateString()}</span>
+                          <h3 className="text-lg font-bold text-gray-900 mb-1">{payment.type}</h3>
+                          <p className="text-sm text-gray-500 mb-2">{payment.description}</p>
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
+                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              Due: {new Date(payment.dueDate).toLocaleDateString()}
                             </span>
                             {payment.paymentDate && (
-                              <span className="flex items-center space-x-1">
-                                <CheckCircle className="w-3 h-3" />
-                                <span>Paid: {new Date(payment.paymentDate).toLocaleDateString()}</span>
+                              <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Paid: {new Date(payment.paymentDate).toLocaleDateString()}
                               </span>
+                            )}
+                            {payment.reference && (
+                              <span className="font-mono bg-gray-50 px-2 py-1 rounded-md">REF: {payment.reference}</span>
                             )}
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="text-right">
-                        <div className="text-lg font-semibold text-gray-900">${payment.amount.toLocaleString()}</div>
-                        <Badge className={getStatusColor(payment.status)}>
-                          {payment.status}
+
+                      <div className="flex flex-col items-end gap-3 min-w-[150px]">
+                        <div className="text-2xl font-bold text-gray-900">GHS {payment.amount.toLocaleString()}</div>
+                        <Badge className={`${statusConfig.bg} ${statusConfig.color} border ${statusConfig.border} capitalize shadow-none`}>
+                           {payment.status}
                         </Badge>
-                        {payment.reference && (
-                          <div className="text-sm text-gray-500 mt-1">
-                            Ref: {payment.reference}
-                          </div>
-                        )}
-                        {payment.status !== 'paid' && (
-                          <Button 
-                            size="sm" 
-                            className="mt-2"
-                            onClick={() => handlePayment(payment.id)}
-                          >
-                            Pay Now
-                          </Button>
-                        )}
+                        
+                        <div className="flex gap-2 mt-2 w-full md:w-auto">
+                           {payment.status === 'paid' ? (
+                             <Button variant="outline" size="sm" className="w-full text-xs h-8">
+                               <Download className="w-3.5 h-3.5 mr-1.5" /> Receipt
+                             </Button>
+                           ) : (
+                             <Button size="sm" onClick={() => handlePayment(payment.id)} className="w-full text-xs h-8 bg-indigo-600 hover:bg-indigo-700">
+                               Pay Now <ArrowUpRight className="w-3.5 h-3.5 ml-1.5" />
+                             </Button>
+                           )}
+                        </div>
                       </div>
                     </div>
-                  </Card>
-                )
-              })}
-            </div>
+                  </div>
+               )
+            })
           ) : (
-            <Card className="p-8 text-center">
-              <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No payments found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-            </Card>
+            <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm payment-card">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">No Payments Found</h3>
+              <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                 We couldn&apos;t find any payment records.
+              </p>
+            </div>
           )}
         </div>
       </div>

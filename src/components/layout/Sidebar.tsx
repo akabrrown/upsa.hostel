@@ -44,6 +44,8 @@ export function Sidebar({ navigation, title = 'Hostel Management', userRole, isO
                 alt="UPSA Logo" 
                 width={80}
                 height={30}
+                priority
+                style={{ height: 'auto' }}
                 className="object-contain"
               />
           </div>

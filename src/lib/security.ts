@@ -169,11 +169,11 @@ export function addSecurityHeaders(request: NextRequest, response: NextResponse)
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://www.googletagmanager.com https://vercel.live https://va.vercel-scripts.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' http://localhost:* https://api.supabase.co https://*.supabase.co",
+    "connect-src 'self' http://localhost:* https://api.supabase.co https://*.supabase.co https://vercel.live https://*.vercel.live",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -590,4 +590,74 @@ function sanitizeObject(obj: any): any {
   }
   
   return obj
+}
+
+// Account Lockout Management
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION_MINUTES = 15
+
+export async function trackFailedLogin(email: string, ip: string, userAgent: string): Promise<{
+  isLocked: boolean
+  attemptsRemaining: number
+  lockoutUntil?: Date
+}> {
+  if (!redis) {
+    return { isLocked: false, attemptsRemaining: MAX_LOGIN_ATTEMPTS }
+  }
+
+  const key = `failed_login:${email}`
+  const attempts = await redis.incr(key)
+  
+  // Set expiry on first attempt
+  if (attempts === 1) {
+    await redis.expire(key, 3600) // 1 hour window
+  }
+
+  if (attempts >= MAX_LOGIN_ATTEMPTS) {
+    // Lock the account
+    const lockoutUntil = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000)
+    await redis.setex(
+      `account_locked:${email}`,
+      LOCKOUT_DURATION_MINUTES * 60,
+      lockoutUntil.toISOString()
+    )
+    
+    return {
+      isLocked: true,
+      attemptsRemaining: 0,
+      lockoutUntil
+    }
+  }
+
+  return {
+    isLocked: false,
+    attemptsRemaining: MAX_LOGIN_ATTEMPTS - attempts
+  }
+}
+
+export async function isAccountLocked(email: string): Promise<{
+  isLocked: boolean
+  lockoutUntil?: Date
+}> {
+  if (!redis) {
+    return { isLocked: false }
+  }
+
+  const lockoutData = await redis.get(`account_locked:${email}`)
+  
+  if (lockoutData) {
+    return {
+      isLocked: true,
+      lockoutUntil: new Date(lockoutData as string)
+    }
+  }
+
+  return { isLocked: false }
+}
+
+export async function clearFailedLoginAttempts(email: string): Promise<void> {
+  if (!redis) return
+  
+  await redis.del(`failed_login:${email}`)
+  await redis.del(`account_locked:${email}`)
 }

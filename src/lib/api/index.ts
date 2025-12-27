@@ -2,7 +2,7 @@
 import { authRateLimiter, getClientId } from '@/lib/security/rateLimiting'
 
 // Base API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
 
 // API client class
 class ApiClient {
@@ -47,14 +47,20 @@ class ApiClient {
 
   // HTTP methods
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-    const url = new URL(`${this.baseUrl}${endpoint}`)
+    let queryString = ''
     if (params) {
+      const searchParams = new URLSearchParams()
       Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, String(value))
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value))
+        }
       })
+      queryString = searchParams.toString()
     }
+    
+    const finalEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint
 
-    return this.request<T>(endpoint + url.search, {
+    return this.request<T>(finalEndpoint, {
       method: 'GET',
     })
   }
@@ -79,6 +85,13 @@ class ApiClient {
     })
   }
 
+  async patch<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
   // Set authentication header
   setAuthHeader(token: string): void {
     this.defaultHeaders.Authorization = `Bearer ${token}`
@@ -97,8 +110,8 @@ const apiClient = new ApiClient()
 export const authApi = {
   // Student registration
   signup: async (userData: {
-    firstName: string
-    lastName: string
+    firstName?: string
+    lastName?: string
     indexNumber: string
     dateOfBirth: string
     phone: string
@@ -275,6 +288,24 @@ export const adminUserApi = {
   // Delete user
   delete: async (userId: string) => {
     return apiClient.delete(`/admin/accounts/${userId}`)
+  }
+}
+
+// Student Settings API
+export const studentSettingsApi = {
+  // Get student settings
+  get: async () => {
+    return apiClient.get('/student/settings')
+  },
+
+  // Update student settings
+  update: async (settingsData: {
+    email_notifications?: boolean
+    sms_notifications?: boolean
+    push_notifications?: boolean
+    theme?: string
+  }) => {
+    return apiClient.patch('/student/settings', settingsData)
   }
 }
 

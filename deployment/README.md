@@ -110,7 +110,7 @@ SMTP_SECURE=false
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_NAME=UPSA Hostel Management
-SMTP_FROM_EMAIL=noreply@upsa.edu.gh
+SMTP_FROM_EMAIL=noreply@upsamail.edu.gh
 
 # SMS Configuration
 MTN_API_KEY=your-mtn-api-key

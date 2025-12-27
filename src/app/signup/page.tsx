@@ -33,8 +33,6 @@ export default function SignupPage() {
         const fullIndexNumber = `UPSA${values.indexNumber}`
         
         const response = await authApi.signup({
-          firstName: values.indexNumber, // Using indexNumber as firstName for now
-          lastName: '', // Empty for now
           indexNumber: fullIndexNumber,
           dateOfBirth: values.dateOfBirth,
           phone: values.phone,

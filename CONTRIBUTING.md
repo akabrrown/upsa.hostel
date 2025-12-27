@@ -320,7 +320,7 @@ describe('POST /api/students', () => {
     const studentData = {
       firstName: 'John',
       lastName: 'Doe',
-      email: 'john.doe@upsa.edu.gh',
+      email: 'john.doe@upsamail.edu.gh',
       indexNumber: '12345678'
     };
 
@@ -348,14 +348,14 @@ describe('StudentCard', () => {
     id: '1',
     firstName: 'John',
     lastName: 'Doe',
-    email: 'john.doe@upsa.edu.gh'
+    email: 'john.doe@upsamail.edu.gh'
   };
 
   it('renders student information correctly', () => {
     render(<StudentCard student={mockStudent} />);
     
     expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('john.doe@upsa.edu.gh')).toBeInTheDocument();
+    expect(screen.getByText('john.doe@upsamail.edu.gh')).toBeInTheDocument();
   });
 
   it('calls onEdit when edit button is clicked', () => {
@@ -379,7 +379,7 @@ describe('StudentCard', () => {
 test('student can view and update profile', async ({ page }) => {
   // Login as student
   await page.goto('/login');
-  await page.fill('[data-testid=email]', 'student@upsa.edu.gh');
+  await page.fill('[data-testid=email]', 'student@upsamail.edu.gh');
   await page.fill('[data-testid=password]', 'password');
   await page.click('[data-testid=login-button]');
 
@@ -562,7 +562,7 @@ Add any other context about the feature request here.
 ### Security Issues
 For security vulnerabilities:
 - Do not open public issues
-- Email security@upsa.edu.gh
+- Email security@upsamail.edu.gh
 - Include detailed description
 - Provide reproduction steps
 - Include impact assessment
@@ -581,7 +581,7 @@ For security vulnerabilities:
 ### Communication Channels
 - **GitHub Issues**: Bug reports and feature requests
 - **Discord**: Real-time discussion and help
-- **Email**: security@upsa.edu.gh (security issues only)
+- **Email**: security@upsamail.edu.gh (security issues only)
 
 ### Meeting Etiquette
 - Come prepared to meetings
@@ -685,7 +685,7 @@ We use Husky for Git hooks:
 - **GitHub Discussions**: General questions and discussions
 - **Issues**: Bug reports and feature requests
 - **Discord**: Real-time help and collaboration
-- **Email**: support@upsa.edu.gh (for urgent issues)
+- **Email**: support@upsamail.edu.gh (for urgent issues)
 
 ### Mentorship
 - New contributors can request a mentor

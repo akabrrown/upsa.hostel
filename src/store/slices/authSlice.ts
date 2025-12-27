@@ -29,7 +29,6 @@ interface User {
   index_number?: string
   date_of_birth?: string
   phone_number?: string
-  gender?: string
   program?: string
   year_of_study?: number
   academic_year?: string
@@ -82,9 +81,16 @@ const normalizeUser = (data: any): User => {
     academicYear: data.academicYear || data.academic_year || '',
     
     // UI related
+    // UI related
     profileImageUrl: data.profileImageUrl || data.profile_image_url || '',
     accommodationStatus: data.accommodationStatus || data.accommodation_status || 'none',
-    paymentStatus: data.paymentStatus || data.payment_status || 'pending',
+    paymentStatus: data.paymentStatus || data.payment_status || 'none',
+    
+    // Status & Related Data
+    accommodation: data.accommodation || null,
+    bookings: data.bookings || [],
+    reservations: data.reservations || [],
+    payments: data.payments || [],
     
     // Nested Objects
     emergencyContact: {
@@ -114,6 +120,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   loading: boolean
+  profileFetched: boolean
 }
 
 const initialState: AuthState = {
@@ -122,6 +129,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   loading: false,
+  profileFetched: false,
 }
 
 // Async thunks
@@ -165,6 +173,7 @@ export const authSlice = createSlice({
       state.isAuthenticated = false
       state.isLoading = false
       state.loading = false
+      state.profileFetched = false
     },
   },
   extraReducers: (builder) => {
@@ -177,6 +186,29 @@ export const authSlice = createSlice({
         const profileData = action.payload.profile
         const userData = action.payload.user
         
+        // Compute accommodation status
+        const accommodationStatus = profileData.accommodation?.is_active 
+          ? 'allocated' 
+          : (profileData.bookings?.some((b: any) => b.status === 'pending') || 
+             profileData.reservations?.some((r: any) => r.status === 'pending'))
+            ? 'pending'
+            : 'none'
+        
+        // Compute payment status - check for confirmed payments or active requests
+        const payments = profileData.payments || []
+        const bookings = profileData.bookings || []
+        const reservations = profileData.reservations || []
+        const hasAccommodation = !!profileData.accommodation
+        
+        const hasConfirmedPayment = payments.some((p: any) => p.status === 'Confirmed')
+        const hasActiveRequest = bookings.length > 0 || reservations.length > 0
+        
+        const paymentStatus = hasConfirmedPayment 
+          ? 'paid' 
+          : (hasActiveRequest || hasAccommodation || payments.length > 0) 
+            ? 'pending' 
+            : 'none'
+        
         // Merge and normalize
         const mergedData = {
           ...userData,
@@ -185,14 +217,19 @@ export const authSlice = createSlice({
           profile: profileData,
           accommodation: profileData.accommodation,
           bookings: profileData.bookings,
-          reservations: profileData.reservations
+          reservations: profileData.reservations,
+          payments: profileData.payments,
+          accommodationStatus,
+          paymentStatus
         }
         
         state.user = normalizeUser(mergedData)
         state.isAuthenticated = true
+        state.profileFetched = true
       })
       .addCase(fetchProfile.rejected, (state) => {
         state.loading = false
+        state.profileFetched = true
       })
   },
 })

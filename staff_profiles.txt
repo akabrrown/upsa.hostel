@@ -1,0 +1,7 @@
+Found 3 staff users:
+- Role: admin, Email: akayetb@upsamail.edu.gh
+  Profile: {"id":"d307e36c-b65a-4c6c-889c-08faf67e55ac","last_name":"TestUser","first_name":"akayetb","phone_number":"0555555555"}
+- Role: porter, Email: akayeteb@upsamail.edu.gh
+  Profile: {"id":"37ccde31-2c50-43f8-a1d7-5eb63da4aa0d","last_name":"TestUser","first_name":"akayeteb","phone_number":"0555555555"}
+- Role: director, Email: akayetez@upsamail.edu.gh
+  Profile: {"id":"c1d1cf19-dca8-45e4-9991-5088b8fb5fbe","last_name":"TestUser","first_name":"akayetez","phone_number":"0555555555"}

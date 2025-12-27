@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .insert({
         user_id: userId,
-        first_name: firstName || rawIndexNumber,
-        last_name: lastName || '',
+        first_name: firstName || null,
+        last_name: lastName || null,
         date_of_birth: dateOfBirth,
         phone_number: phoneNumber,
         student_id: indexNumber,

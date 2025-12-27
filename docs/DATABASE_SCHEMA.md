@@ -439,7 +439,7 @@ CREATE INDEX announcements_recent_index ON announcements(published_at DESC) WHER
 ## Data Integrity Constraints
 
 ### Check Constraints
-- Email format validation (@upsa.edu.gh)
+- Email format validation (@upsamail.edu.gh)
 - Index number format (8 digits)
 - Payment amounts (positive values)
 - Room capacity vs occupancy
@@ -569,13 +569,13 @@ Maintain comprehensive data dictionary with:
 ## Contact and Support
 
 ### Database Administration
-- **DBA Team**: dba@upsa.edu.gh
-- **Emergency**: dba-emergency@upsa.edu.gh
+- **DBA Team**: dba@upsamail.edu.gh
+- **Emergency**: dba-emergency@upsamail.edu.gh
 - **Documentation**: Available in project repository
 
 ### Development Support
-- **Backend Team**: backend@upsa.edu.gh
-- **DevOps**: devops@upsa.edu.gh
+- **Backend Team**: backend@upsamail.edu.gh
+- **DevOps**: devops@upsamail.edu.gh
 - **Issue Tracking**: GitHub repository issues
 
 This schema documentation provides a comprehensive reference for the UPSA Hostel Management System database structure and should be kept current with all schema changes.

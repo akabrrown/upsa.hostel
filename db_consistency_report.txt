@@ -1,0 +1,3 @@
+Found 4 users.
+Found 4 profiles.
+No inconsistencies found between Users and Profiles tables regarding index numbers.

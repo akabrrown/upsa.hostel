@@ -248,7 +248,7 @@ async function main() {
   
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@upsa.edu.gh',
+      email: 'admin@upsamail.edu.gh',
       password_hash: hashedPassword,
       first_name: 'System',
       last_name: 'Administrator',
@@ -765,7 +765,7 @@ grep "connection" /var/log/postgresql/postgresql-14-main.log
 ### Community Support
 - **GitHub Issues**: Report bugs and feature requests
 - **Discord Channel**: Real-time support and discussion
-- **Email Support**: support@upsa.edu.gh
+- **Email Support**: support@upsamail.edu.gh
 
 ### Additional Resources
 - **Next.js Documentation**: https://nextjs.org/docs
@@ -774,8 +774,8 @@ grep "connection" /var/log/postgresql/postgresql-14-main.log
 - **Redis Documentation**: https://redis.io/documentation
 
 ### Emergency Contacts
-- **System Administrator**: admin@upsa.edu.gh
-- **Database Administrator**: dba@upsa.edu.gh
-- **DevOps Team**: devops@upsa.edu.gh
+- **System Administrator**: admin@upsamail.edu.gh
+- **Database Administrator**: dba@upsamail.edu.gh
+- **DevOps Team**: devops@upsamail.edu.gh
 
 This environment setup guide should help you get the UPSA Hostel Management System running in both development and production environments.

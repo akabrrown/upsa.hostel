@@ -26,7 +26,7 @@ This comprehensive troubleshooting guide helps resolve common issues encountered
 
 **Solutions:**
 1. **Check Credentials:**
-   - Verify email address is correct (@upsa.edu.gh)
+   - Verify email address is correct (@upsamail.edu.gh)
    - Check password spelling and case sensitivity
    - Ensure correct role is selected (student/admin/porter/director)
 
@@ -200,7 +200,7 @@ This comprehensive troubleshooting guide helps resolve common issues encountered
 1. **Data Validation:**
    - Check all required fields are filled
    - Verify index number format (8 digits)
-   - Ensure email ends with @upsa.edu.gh
+   - Ensure email ends with @upsamail.edu.gh
 
 2. **Duplicate Check:**
    - Search for existing student with same index number
@@ -688,10 +688,10 @@ pm2 monit                  # Monitor processes
 ### Contact Information
 
 #### Support Channels
-- **Technical Support**: support@upsa.edu.gh
-- **Database Admin**: dba@upsa.edu.gh
-- **Security Team**: security@upsa.edu.gh
-- **Emergency Contact**: emergency@upsa.edu.gh
+- **Technical Support**: support@upsamail.edu.gh
+- **Database Admin**: dba@upsamail.edu.gh
+- **Security Team**: security@upsamail.edu.gh
+- **Emergency Contact**: emergency@upsamail.edu.gh
 
 #### Documentation
 - **API Docs**: `/docs/API.md`

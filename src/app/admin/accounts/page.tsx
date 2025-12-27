@@ -1,19 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { gsap } from 'gsap'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
-import Badge from '@/components/ui/badge'
 import Input from '@/components/ui/input'
 import { DataTable } from '@/components/ui/dataTable'
-import apiClient from '@/lib/api'
-import styles from './accounts.module.css'
-import { Search, Filter, Plus, Edit, Eye, Trash2, User, Mail, Shield, Calendar, MoreVertical, Lock, Unlock, X } from 'lucide-react'
+import ModernBadge from '@/components/admin/ModernBadge'
+import AnimatedStatCard from '@/components/admin/AnimatedStatCard'
+import EmptyState from '@/components/admin/EmptyState'
+import { Search, Plus, Edit, Trash2, User, Mail, Shield, Calendar, Lock, Unlock, X, Filter, Users, UserCheck, UserMinus, UserX } from 'lucide-react'
 import { formatIndexNumber } from '@/lib/formatters'
 import { TableColumn } from '@/types'
-import { useCallback } from 'react'
+import { initPageAnimations } from '@/lib/animations'
 
 interface Account {
   id: number
@@ -42,7 +41,7 @@ export default function AdminAccounts() {
   const [selectedRole, setSelectedRole] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [selectedAccount, setSelectedAccount] = useState(null)
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   const [formData, setFormData] = useState({
@@ -81,31 +80,10 @@ export default function AdminAccounts() {
   }, [loadAccounts])
 
   useEffect(() => {
-    // Initial animations
-    gsap.from('.accounts-card', {
-      opacity: 0,
-      y: 20,
-      duration: 0.6,
-      ease: 'power3.out',
-      stagger: 0.1
-    })
-
-    const tl = gsap.timeline()
-    tl.fromTo('.page-header',
-      { opacity: 0, y: -30 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
-    )
-    .fromTo('.stats-cards',
-      { opacity: 0, scale: 0.95 },
-      { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' },
-      '-=0.4'
-    )
-    .fromTo('.accounts-table',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
-      '-=0.3'
-    )
-  }, [])
+    if (!loading) {
+      initPageAnimations(150)
+    }
+  }, [loading])
 
   const roles = [
     { id: 'all', name: 'All Roles' },
@@ -122,42 +100,24 @@ export default function AdminAccounts() {
     { id: 'suspended', name: 'Suspended' }
   ]
 
-  const filteredAccounts = accounts.filter(account => {
-    const matchesSearch = 
-      account.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.indexNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesRole = selectedRole === 'all' || account.role === selectedRole
-    const matchesStatus = selectedStatus === 'all' || account.status === selectedStatus
-    
-    return matchesSearch && matchesRole && matchesStatus
-  })
-
-  const getRoleColor = (role: string) => {
+  const getRoleVariant = (role: string): 'info' | 'danger' | 'success' | 'warning' | 'neutral' => {
     switch (role) {
-      case 'student': return 'text-blue-600 bg-blue-100'
-      case 'admin': return 'text-purple-600 bg-purple-100'
-      case 'porter': return 'text-green-600 bg-green-100'
-      case 'director': return 'text-red-600 bg-red-100'
-      default: return 'text-gray-600 bg-gray-100'
+      case 'student': return 'info'
+      case 'admin': return 'danger'
+      case 'porter': return 'success'
+      case 'director': return 'warning'
+      default: return 'neutral'
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): 'success' | 'neutral' | 'danger' => {
     switch (status) {
-      case 'active': return 'text-green-600 bg-green-100'
-      case 'inactive': return 'text-gray-600 bg-gray-100'
-      case 'suspended': return 'text-red-600 bg-red-100'
-      default: return 'text-gray-600 bg-gray-100'
+      case 'active': return 'success'
+      case 'inactive': return 'neutral'
+      case 'suspended': return 'danger'
+      default: return 'neutral'
     }
   }
-
-  const totalAccounts = accounts.length
-  const activeAccounts = accounts.filter(a => a.status === 'active').length
-  const inactiveAccounts = accounts.filter(a => a.status === 'inactive').length
-  const suspendedAccounts = accounts.filter(a => a.status === 'suspended').length
 
   const handleCreateAccount = async () => {
     if (!formData.firstName || !formData.lastName || !formData.email) {
@@ -172,19 +132,8 @@ export default function AdminAccounts() {
       await adminUserApi.create(formData)
       setShowCreateModal(false)
       loadAccounts()
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        role: 'student',
-        indexNumber: '',
-        hostel: '',
-        room: '',
-        phone: '',
-        emergencyContact: ''
-      })
+      resetForm()
     } catch (error: any) {
-      console.error('Failed to create account:', error)
       setError(error.message || 'Failed to create account')
     } finally {
       setIsSubmitting(false)
@@ -192,8 +141,7 @@ export default function AdminAccounts() {
   }
 
   const handleDeleteAccount = async (id: number | string) => {
-    if (!confirm('Are you sure you want to delete this account?')) return
-    
+    if (!confirm('Permanently delete this account?')) return
     try {
       const { adminUserApi } = await import('@/lib/api')
       await adminUserApi.delete(id.toString())
@@ -204,76 +152,68 @@ export default function AdminAccounts() {
   }
 
   const handleToggleLock = async (id: number | string) => {
-    try {
-      const { adminUserApi } = await import('@/lib/api')
-      // Toggle logic would go here, for now using update as a placeholder if needed
-      // or a specific lock endpoint if implemented later
-      console.log('Toggling lock for account:', id)
-    } catch (error) {
-      console.error('Failed to toggle lock:', error)
-    }
+    console.log('Toggling lock for account:', id)
+    // Placeholder for API call
   }
 
-  const handleResetPassword = (id: number) => {
-    // Handle password reset
-    console.log('Resetting password for account:', id)
+  const resetForm = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      role: 'student',
+      indexNumber: '',
+      hostel: '',
+      room: '',
+      phone: '',
+      emergencyContact: ''
+    })
+    setError('')
   }
 
   const columns: TableColumn[] = [
     {
       key: 'firstName',
-      title: 'User',
+      title: 'Identity',
       render: (value: string, row: any) => (
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-blue-600" />
+        <div className="flex items-center space-x-4">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600">
+            {value.charAt(0)}{row.lastName.charAt(0)}
           </div>
           <div>
-            <div className="font-medium text-gray-900">
-              {value} {row.lastName}
-            </div>
-            <div className="text-sm text-gray-500">{row.email}</div>
+            <div className="font-bold text-gray-900">{value} {row.lastName}</div>
+            <div className="text-xs text-gray-500">{row.email}</div>
           </div>
         </div>
       )
     },
     {
       key: 'role',
-      title: 'Role',
+      title: 'Privilege',
       render: (value: string) => (
-        <Badge className={`capitalize ${getRoleColor(value)}`}>
-          {value}
-        </Badge>
-      )
-    },
-    {
-      key: 'indexNumber',
-      title: 'Index Number',
-      render: (value: string) => (
-        <span className="text-sm text-gray-600 font-mono">{formatIndexNumber(value) || '-'}</span>
+        <ModernBadge variant={getRoleVariant(value)}>
+          {value.toUpperCase()}
+        </ModernBadge>
       )
     },
     {
       key: 'status',
-      title: 'Status',
+      title: 'State',
       render: (value: string, row: any) => (
         <div className="flex items-center space-x-2">
-          <Badge className={`capitalize ${getStatusColor(value)}`}>
+          <ModernBadge variant={getStatusVariant(value)}>
             {value}
-          </Badge>
-          {row.isLocked && (
-            <Lock className="w-3.5 h-3.5 text-amber-500" />
-          )}
+          </ModernBadge>
+          {row.isLocked && <Lock className="w-3.5 h-3.5 text-amber-500" />}
         </div>
       )
     },
     {
       key: 'lastLogin',
-      title: 'Last Login',
+      title: 'Activity',
       render: (value: string) => (
-        <div className="text-sm text-gray-500 flex items-center">
-          <Calendar className="w-3 h-3 mr-1.5" />
-          {value === 'Never' ? 'Never' : new Date(value).toLocaleDateString()}
+        <div className="text-xs text-gray-500 font-medium">
+          {value === 'Never' ? 'Offline' : `Seen ${new Date(value).toLocaleDateString()}`}
         </div>
       )
     },
@@ -281,276 +221,161 @@ export default function AdminAccounts() {
       key: 'id',
       title: 'Actions',
       render: (value: string | number, row: any) => (
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="p-2 h-8 w-8"
-            onClick={() => setSelectedAccount(row)}
-            title="Edit User"
-          >
-            <Edit className="w-4 h-4" />
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-full" onClick={() => { setSelectedAccount(row); }}><Edit className="w-3.5 h-3.5" /></Button>
+          <Button variant="outline" size="sm" className={`h-8 w-8 p-0 rounded-full ${row.isLocked ? 'bg-amber-50 text-amber-600 border-amber-200' : ''}`} onClick={() => handleToggleLock(value)} title={row.isLocked ? "Unlock" : "Lock"}>
+            {row.isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={`p-2 h-8 w-8 ${row.isLocked ? 'text-amber-600 bg-amber-50' : ''}`}
-            onClick={() => handleToggleLock(value)}
-            title={row.isLocked ? "Unlock User" : "Lock User"}
-          >
-            {row.isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="p-2 h-8 w-8 text-red-600 hover:bg-red-50"
-            onClick={() => handleDeleteAccount(value)}
-            title="Delete User"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-full text-red-500 hover:bg-red-50 border-gray-100" onClick={() => handleDeleteAccount(value)}><Trash2 className="w-3.5 h-3.5" /></Button>
         </div>
       )
     }
   ]
 
+  const totalAccounts = accounts.length
+  const activeCount = accounts.filter(a => a.status === 'active').length
+  const suspendedCount = accounts.filter(a => a.status === 'suspended').length
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50/50">
+      <main className="p-6">
         {/* Page Header */}
-        <div className="page-header mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Account Management</h1>
-              <p className="text-gray-600 mt-1">Manage user accounts and permissions</p>
-            </div>
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Account
-            </Button>
+        <div className="page-header mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">User Ecosystem</h1>
+            <p className="text-gray-600 mt-1">Manage credentials and access levels across the platform</p>
           </div>
+          <Button onClick={() => setShowCreateModal(true)} className="shadow-lg shadow-blue-500/20">
+            <Plus className="w-4 h-4 mr-2" />
+            Provision New User
+          </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="stats-cards mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <User className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900">{totalAccounts}</h3>
-              <p className="text-gray-600">Total Accounts</p>
-            </Card>
-
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Shield className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-green-600">{activeAccounts}</h3>
-              <p className="text-gray-600">Active</p>
-            </Card>
-
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Lock className="w-6 h-6 text-gray-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-600">{inactiveAccounts}</h3>
-              <p className="text-gray-600">Inactive</p>
-            </Card>
-
-            <Card className="p-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Trash2 className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-red-600">{suspendedAccounts}</h3>
-              <p className="text-gray-600">Suspended</p>
-            </Card>
-          </div>
+        {/* Stats Section */}
+        <div className="stats-cards grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+           <AnimatedStatCard icon={Users} label="Total Members" value={totalAccounts} iconColor="blue" />
+           <AnimatedStatCard icon={UserCheck} label="Active Sessions" value={activeCount} iconColor="green" />
+           <AnimatedStatCard icon={UserMinus} label="Inactive" value={totalAccounts - activeCount - suspendedCount} iconColor="orange" />
+           <AnimatedStatCard icon={UserX} label="Suspended" value={suspendedCount} iconColor="red" />
         </div>
 
-        {/* Search and Filter */}
-        <div className="mb-8">
-          <Card className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search accounts..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-                
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {statuses.map(status => (
-                    <option key={status.id} value={status.id}>
-                      {status.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="text-sm text-gray-600">
-                Showing {filteredAccounts.length} of {totalAccounts} accounts
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Accounts Table */}
-        <div className="accounts-table">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Accounts</h2>
-            <DataTable
-              columns={columns}
-              data={filteredAccounts}
-              pagination={true}
-              pageSize={10}
-              searchable={true}
-            />
-          </Card>
-        </div>
-
-        {/* Create Account Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">Create New Account</h2>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="p-1 hover:bg-gray-100"
-                    onClick={() => setShowCreateModal(false)}
-                  >
-                    <Plus className="w-5 h-5 transform rotate-45" />
-                  </Button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        First Name <span className="text-red-500">*</span>
-                      </label>
+        {/* Search & Filter */}
+        <div className="content-section mb-8">
+           <Card className="p-4 border-none shadow-sm bg-white">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <Input
-                        value={formData.firstName}
-                        onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                        placeholder="Enter first name"
+                        placeholder="Search name, email or index..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 h-10 w-64"
                       />
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Last Name <span className="text-red-500">*</span>
-                      </label>
-                      <Input
-                        value={formData.lastName}
-                        onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                        placeholder="Enter last name"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email address <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="Enter email address"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Role <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {roles.filter(r => r.id !== 'all').map(role => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
+                    <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="h-10 px-4 border border-gray-100 rounded-xl text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-blue-100 transition-all font-medium">
+                      {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {formData.role === 'student' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Index Number <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          value={formData.indexNumber}
-                          onChange={(e) => setFormData(prev => ({ ...prev, indexNumber: e.target.value }))}
-                          placeholder="Enter index number"
-                        />
-                      </div>
-                    )}
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone {formData.role === 'student' ? '' : '(Optional)'}
-                      </label>
-                      <Input
-                        value={formData.phone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {error && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm">
-                    {error}
-                  </div>
-                )}
-                
-                <div className="flex justify-end space-x-3 mt-6">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setShowCreateModal(false)}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateAccount} disabled={isSubmitting}>
-                    {isSubmitting ? 'Creating...' : 'Create Account'}
-                  </Button>
-                </div>
+
+                    <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="h-10 px-4 border border-gray-100 rounded-xl text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-blue-100 transition-all font-medium">
+                      {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                 </div>
+                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">
+                    Viewing {accounts.length} Accounts
+                 </div>
               </div>
-            </Card>
-          </div>
-        )}
-      </div>
+           </Card>
+        </div>
+
+        {/* Table Section */}
+        <div className="accounts-table">
+          <Card className="p-0 border-none shadow-sm bg-white overflow-hidden">
+             {accounts.length > 0 ? (
+                <DataTable
+                  columns={columns}
+                  data={accounts}
+                  pagination={true}
+                  pageSize={15}
+                />
+             ) : (
+               <EmptyState
+                 icon={Users}
+                 title="No Accounts Located"
+                 description="The user directory is currently empty or no results match your query."
+                 actionLabel="Create First User"
+                 onAction={() => setShowCreateModal(true)}
+               />
+             )}
+          </Card>
+        </div>
+      </main>
+
+      {/* Creation Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => { setShowCreateModal(false); resetForm(); }} />
+           <Card className="w-full max-w-2xl relative z-10 p-0 overflow-hidden rounded-3xl border-none shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="p-8 space-y-8">
+                 <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                       <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                          <Plus className="w-6 h-6 text-blue-600" />
+                       </div>
+                       <div>
+                          <h2 className="text-2xl font-bold text-gray-900">Provision Account</h2>
+                          <p className="text-sm text-gray-500 mt-0.5">Define identity and system privileges</p>
+                       </div>
+                    </div>
+                    <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
+                 </div>
+
+                 <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">First Name</label>
+                          <Input value={formData.firstName} onChange={(e) => setFormData(p => ({ ...p, firstName: e.target.value }))} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Last Name</label>
+                          <Input value={formData.lastName} onChange={(e) => setFormData(p => ({ ...p, lastName: e.target.value }))} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Corporate Email</label>
+                       <Input type="email" value={formData.email} onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Role Level</label>
+                          <select value={formData.role} onChange={(e) => setFormData(p => ({ ...p, role: e.target.value }))} className="w-full px-4 h-11 border border-gray-100 rounded-2xl bg-gray-50 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all">
+                             {roles.filter(r => r.id !== 'all').map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                       </div>
+                       {formData.role === 'student' && (
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Index Serial</label>
+                            <Input value={formData.indexNumber} onChange={(e) => setFormData(p => ({ ...p, indexNumber: e.target.value }))} />
+                         </div>
+                       )}
+                    </div>
+                 </div>
+
+                 {error && <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-xl">{error}</div>}
+
+                 <div className="pt-4 flex items-center justify-end gap-3">
+                    <Button variant="ghost" onClick={() => { setShowCreateModal(false); resetForm(); }} className="font-bold text-gray-400">Cancel</Button>
+                    <Button onClick={handleCreateAccount} disabled={isSubmitting} className="px-10 shadow-xl shadow-blue-500/20">
+                       {isSubmitting ? 'Provisioning...' : 'Provision Now'}
+                    </Button>
+                 </div>
+              </div>
+           </Card>
+        </div>
+      )}
     </div>
   )
 }

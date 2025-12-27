@@ -12,12 +12,14 @@ import {
   CalendarCheck,
   LogOut,
   Menu,
-  BedDouble
+  BedDouble,
+  Settings
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '@/store/slices/authSlice'
 import { RootState } from '@/store'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 const studentNavigation = [
   { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
@@ -27,6 +29,7 @@ const studentNavigation = [
   { name: 'Roommates', href: '/student/roommates', icon: Users },
   { name: 'Payments', href: '/student/payments', icon: CreditCard },
   { name: 'Announcements', href: '/student/announcements', icon: Bell },
+  { name: 'Settings', href: '/student/settings', icon: Settings },
 ]
 
 export default function StudentLayout({
@@ -38,6 +41,9 @@ export default function StudentLayout({
   const dispatch = useDispatch()
   const router = useRouter()
   const { user } = useSelector((state: RootState) => state.auth)
+
+  // Enable session timeout
+  useSessionTimeout()
 
   const handleLogout = () => {
     dispatch(logout())

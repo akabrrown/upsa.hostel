@@ -15,7 +15,8 @@ interface CheckinRecord {
     roomNumber: string
   }
   checkInTime: string
-  status: 'active' | 'checked_out'
+  checkOutTime?: string | null
+  status: 'active' | 'checked_in' | 'checked_out'
 }
 
 interface PorterState {

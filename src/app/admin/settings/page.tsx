@@ -4,49 +4,39 @@ import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { RootState } from '@/store'
-import { gsap } from 'gsap'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
-import Badge from '@/components/ui/badge'
-import { Settings, Bell, Mail, Shield, Database, CreditCard, Users, Building, Calendar, Save, RefreshCw, Download, Upload } from 'lucide-react'
+import ModernBadge from '@/components/admin/ModernBadge'
+import AnimatedStatCard from '@/components/admin/AnimatedStatCard'
+import { Settings, Bell, Mail, Shield, Database, CreditCard, Building, Calendar, Save, Download, X, Plus, Clock, RefreshCw } from 'lucide-react'
+import { initPageAnimations } from '@/lib/animations'
 
 interface SystemSettings {
-  // General Settings
   institutionName: string
   institutionEmail: string
   institutionPhone: string
   institutionAddress: string
   academicYear: string
   currentSemester: string
-  
-  // Payment Settings
   paymentReminderDays: number
   latePaymentFee: number
   paymentMethods: string[]
   currency: string
-  
-  // Email Settings
   smtpHost: string
   smtpPort: number
   smtpUsername: string
   smtpPassword: string
   emailFromName: string
   emailFromAddress: string
-  
-  // Notification Settings
   enableEmailNotifications: boolean
   enableSmsNotifications: boolean
   enablePushNotifications: boolean
   notificationFrequency: string
-  
-  // Security Settings
   passwordMinLength: number
   sessionTimeout: number
   maxLoginAttempts: number
   enableTwoFactorAuth: boolean
-  
-  // Backup Settings
   autoBackup: boolean
   backupFrequency: string
   backupRetention: number
@@ -62,8 +52,14 @@ interface EmailTemplate {
   category: string
 }
 
+interface FeatureToggle {
+  bookingEnabled: boolean
+  reservationEnabled: boolean
+}
+
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState('general')
+  const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState<SystemSettings>({
     institutionName: 'University of Professional Studies Accra',
     institutionEmail: 'info@upsamail.edu.gh',
@@ -94,6 +90,12 @@ export default function AdminSettings() {
     backupRetention: 30,
     lastBackupDate: '2024-12-15T02:00:00Z'
   })
+  
+  const [toggles, setToggles] = useState<FeatureToggle>({
+    bookingEnabled: true,
+    reservationEnabled: true
+  })
+  const [isUpdatingToggles, setIsUpdatingToggles] = useState(false)
   
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([
     {
@@ -133,56 +135,77 @@ export default function AdminSettings() {
       router.push('/login')
       return
     }
-
-    // Animate page content
-    const tl = gsap.timeline()
-    
-    tl.fromTo('.page-header',
-      { opacity: 0, y: -30 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
-    )
-    .fromTo('.settings-tabs',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
-      '-=0.4'
-    )
-    .fromTo('.settings-content',
-      { opacity: 0, scale: 0.95 },
-      { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' },
-      '-=0.3'
-    )
+    loadToggles()
   }, [user, router])
 
-  const handleSaveSettings = () => {
-    // Handle settings save
-    console.log('Saving settings:', settings)
-    // Show success message
+  useEffect(() => {
+    if (!loading) {
+      initPageAnimations(200)
+    }
+  }, [loading])
+
+  const loadToggles = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/admin/settings')
+      const result = await response.json()
+      if (response.ok && result.settings) {
+        const booking = result.settings.find((s: any) => s.key === 'booking_enabled')
+        const reservation = result.settings.find((s: any) => s.key === 'reservation_enabled')
+        const acadYear = result.settings.find((s: any) => s.key === 'current_academic_year')
+        const semester = result.settings.find((s: any) => s.key === 'current_semester')
+        
+        setToggles({
+          bookingEnabled: booking?.value === true,
+          reservationEnabled: reservation?.value === true
+        })
+
+        if (acadYear || semester) {
+          setSettings(prev => ({
+            ...prev,
+            academicYear: acadYear?.value || prev.academicYear,
+            currentSemester: semester?.value || prev.currentSemester
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleTestEmail = () => {
-    // Handle email test
-    console.log('Testing email configuration')
-  }
-
-  const handleBackup = () => {
-    // Handle manual backup
-    console.log('Creating backup')
-  }
-
-  const handleRestore = () => {
-    // Handle restore
-    console.log('Restoring from backup')
-  }
-
-  const handleSaveTemplate = () => {
-    // Handle template save
-    console.log('Saving template:', selectedTemplate)
-    setShowTemplateEditor(false)
-    setSelectedTemplate(null)
+  const handleSettingChange = async (key: string, value: any) => {
+    setIsUpdatingToggles(true)
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+      })
+      
+      if (response.ok) {
+        if (key === 'booking_enabled' || key === 'reservation_enabled') {
+          setToggles(prev => ({
+            ...prev,
+            [key === 'booking_enabled' ? 'bookingEnabled' : 'reservationEnabled']: value
+          }))
+        } else if (key === 'current_academic_year') {
+          setSettings(prev => ({ ...prev, academicYear: value }))
+        } else if (key === 'current_semester') {
+          setSettings(prev => ({ ...prev, currentSemester: value }))
+        }
+      }
+    } catch (error) {
+      console.error('Error updating setting:', error)
+    } finally {
+      setIsUpdatingToggles(false)
+    }
   }
 
   const tabs = [
     { id: 'general', name: 'General', icon: Settings },
+    { id: 'acquisition', name: 'Acquisition', icon: Building },
     { id: 'payment', name: 'Payment', icon: CreditCard },
     { id: 'email', name: 'Email', icon: Mail },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -190,618 +213,348 @@ export default function AdminSettings() {
     { id: 'backup', name: 'Backup', icon: Database }
   ]
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <div className="page-header mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
-                <p className="text-gray-600 mt-1">Configure system-wide settings and preferences</p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Button variant="outline" onClick={handleBackup}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Settings
-                </Button>
-                <Button onClick={handleSaveSettings}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save All Settings
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Settings Tabs */}
-          <div className="settings-tabs mb-8">
-            <Card className="p-2">
-              <div className="flex flex-wrap gap-2">
-                {tabs.map(tab => {
-                  const Icon = tab.icon
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                        activeTab === tab.id
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{tab.name}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </Card>
-          </div>
-
-          {/* Settings Content */}
-          <div className="settings-content">
-            {/* General Settings */}
-            {activeTab === 'general' && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">General Settings</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Institution Name
-                    </label>
-                    <Input
-                      value={settings.institutionName}
-                      onChange={(e) => setSettings(prev => ({ ...prev, institutionName: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Institution Email
-                    </label>
-                    <Input
-                      type="email"
-                      value={settings.institutionEmail}
-                      onChange={(e) => setSettings(prev => ({ ...prev, institutionEmail: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Institution Phone
-                    </label>
-                    <Input
-                      value={settings.institutionPhone}
-                      onChange={(e) => setSettings(prev => ({ ...prev, institutionPhone: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Institution Address
-                    </label>
-                    <Input
-                      value={settings.institutionAddress}
-                      onChange={(e) => setSettings(prev => ({ ...prev, institutionAddress: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Academic Year
-                    </label>
-                    <select
-                      value={settings.academicYear}
-                      onChange={(e) => setSettings(prev => ({ ...prev, academicYear: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="2023/2024">2023/2024</option>
-                      <option value="2024/2025">2024/2025</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Current Semester
-                    </label>
-                    <select
-                      value={settings.currentSemester}
-                      onChange={(e) => setSettings(prev => ({ ...prev, currentSemester: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="First Semester">First Semester</option>
-                      <option value="Second Semester">Second Semester</option>
-                    </select>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Payment Settings */}
-            {activeTab === 'payment' && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Payment Settings</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Reminder Days
-                    </label>
-                    <Input
-                      type="number"
-                      value={settings.paymentReminderDays}
-                      onChange={(e) => setSettings(prev => ({ ...prev, paymentReminderDays: parseInt(e.target.value) }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Late Payment Fee ({settings.currency})
-                    </label>
-                    <Input
-                      type="number"
-                      value={settings.latePaymentFee}
-                      onChange={(e) => setSettings(prev => ({ ...prev, latePaymentFee: parseInt(e.target.value) }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Currency
-                    </label>
-                    <select
-                      value={settings.currency}
-                      onChange={(e) => setSettings(prev => ({ ...prev, currency: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="GHS">GHS - Ghana Cedi</option>
-                      <option value="USD">USD - US Dollar</option>
-                      <option value="EUR">EUR - Euro</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Methods
-                    </label>
-                    <div className="space-y-2">
-                      {['Bank Transfer', 'Mobile Money', 'Credit Card'].map(method => (
-                        <label key={method} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={settings.paymentMethods.includes(method)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSettings(prev => ({ ...prev, paymentMethods: [...prev.paymentMethods, method] }))
-                              } else {
-                                setSettings(prev => ({ ...prev, paymentMethods: prev.paymentMethods.filter(m => m !== method) }))
-                              }
-                            }}
-                          />
-                          <span className="text-sm">{method}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Email Settings */}
-            {activeTab === 'email' && (
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Email Configuration</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        SMTP Host
-                      </label>
-                      <Input
-                        value={settings.smtpHost}
-                        onChange={(e) => setSettings(prev => ({ ...prev, smtpHost: e.target.value }))}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        SMTP Port
-                      </label>
-                      <Input
-                        type="number"
-                        value={settings.smtpPort}
-                        onChange={(e) => setSettings(prev => ({ ...prev, smtpPort: parseInt(e.target.value) }))}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        SMTP Username
-                      </label>
-                      <Input
-                        value={settings.smtpUsername}
-                        onChange={(e) => setSettings(prev => ({ ...prev, smtpUsername: e.target.value }))}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        SMTP Password
-                      </label>
-                      <Input
-                        type="password"
-                        value={settings.smtpPassword}
-                        onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        From Name
-                      </label>
-                      <Input
-                        value={settings.emailFromName}
-                        onChange={(e) => setSettings(prev => ({ ...prev, emailFromName: e.target.value }))}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        From Address
-                      </label>
-                      <Input
-                        type="email"
-                        value={settings.emailFromAddress}
-                        onChange={(e) => setSettings(prev => ({ ...prev, emailFromAddress: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end mt-6">
-                    <Button variant="outline" onClick={handleTestEmail}>
-                      <Mail className="w-4 h-4 mr-2" />
-                      Test Email Configuration
-                    </Button>
-                  </div>
-                </Card>
-
-                {/* Email Templates */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">Email Templates</h2>
-                    <Button onClick={() => setShowTemplateEditor(true)}>
-                      <Mail className="w-4 h-4 mr-2" />
-                      New Template
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {emailTemplates.map(template => (
-                      <div key={template.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h3 className="font-medium text-gray-900">{template.name}</h3>
-                            <p className="text-sm text-gray-500">{template.subject}</p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{template.category}</Badge>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedTemplate(template)
-                                setShowTemplateEditor(true)
-                              }}
-                            >
-                              Edit
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          <p className="line-clamp-2">{template.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Notification Settings */}
-            {activeTab === 'notifications' && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Notification Settings</h2>
-                
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="font-medium text-gray-900">Notification Channels</h3>
-                    
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={settings.enableEmailNotifications}
-                        onChange={(e) => setSettings(prev => ({ ...prev, enableEmailNotifications: e.target.checked }))}
-                      />
-                      <span className="text-sm">Enable Email Notifications</span>
-                    </label>
-                    
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={settings.enableSmsNotifications}
-                        onChange={(e) => setSettings(prev => ({ ...prev, enableSmsNotifications: e.target.checked }))}
-                      />
-                      <span className="text-sm">Enable SMS Notifications</span>
-                    </label>
-                    
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={settings.enablePushNotifications}
-                        onChange={(e) => setSettings(prev => ({ ...prev, enablePushNotifications: e.target.checked }))}
-                      />
-                      <span className="text-sm">Enable Push Notifications</span>
-                    </label>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notification Frequency
-                    </label>
-                    <select
-                      value={settings.notificationFrequency}
-                      onChange={(e) => setSettings(prev => ({ ...prev, notificationFrequency: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="immediate">Immediate</option>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Security Settings */}
-            {activeTab === 'security' && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Minimum Password Length
-                    </label>
-                    <Input
-                      type="number"
-                      value={settings.passwordMinLength}
-                      onChange={(e) => setSettings(prev => ({ ...prev, passwordMinLength: parseInt(e.target.value) }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Session Timeout (minutes)
-                    </label>
-                    <Input
-                      type="number"
-                      value={settings.sessionTimeout}
-                      onChange={(e) => setSettings(prev => ({ ...prev, sessionTimeout: parseInt(e.target.value) }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Maximum Login Attempts
-                    </label>
-                    <Input
-                      type="number"
-                      value={settings.maxLoginAttempts}
-                      onChange={(e) => setSettings(prev => ({ ...prev, maxLoginAttempts: parseInt(e.target.value) }))}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-3 pt-6">
-                    <input
-                      type="checkbox"
-                      checked={settings.enableTwoFactorAuth}
-                      onChange={(e) => setSettings(prev => ({ ...prev, enableTwoFactorAuth: e.target.checked }))}
-                    />
-                    <span className="text-sm font-medium text-gray-700">Enable Two-Factor Authentication</span>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Backup Settings */}
-            {activeTab === 'backup' && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Backup Settings</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="space-y-4">
-                    <h3 className="font-medium text-gray-900">Automatic Backup</h3>
-                    
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={settings.autoBackup}
-                        onChange={(e) => setSettings(prev => ({ ...prev, autoBackup: e.target.checked }))}
-                      />
-                      <span className="text-sm">Enable Automatic Backup</span>
-                    </label>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Backup Frequency
-                      </label>
-                      <select
-                        value={settings.backupFrequency}
-                        onChange={(e) => setSettings(prev => ({ ...prev, backupFrequency: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Backup Retention (days)
-                      </label>
-                      <Input
-                        type="number"
-                        value={settings.backupRetention}
-                        onChange={(e) => setSettings(prev => ({ ...prev, backupRetention: parseInt(e.target.value) }))}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h3 className="font-medium text-gray-900">Backup Status</h3>
-                    
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">Last Backup:</span>
-                        <span className="text-sm text-gray-600">
-                          {new Date(settings.lastBackupDate).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Status:</span>
-                        <Badge className="bg-green-100 text-green-800">Completed</Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="flex space-x-3">
-                      <Button onClick={handleBackup}>
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Backup Now
-                      </Button>
-                      <Button variant="outline" onClick={handleRestore}>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Restore Backup
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
+    )
+  }
 
-      {/* Template Editor Modal */}
-      {showTemplateEditor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedTemplate ? 'Edit Template' : 'New Template'}
-                </h2>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setShowTemplateEditor(false)
-                    setSelectedTemplate(null)
-                  }}
-                >
-                  X
-                </Button>
+  return (
+    <div className="min-h-screen bg-gray-50/50">
+      <main className="p-6">
+        {/* Page Header */}
+        <div className="page-header mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">System Configuration</h1>
+            <p className="text-gray-600 mt-1">Control platform-wide parameters and behaviors</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline">
+               <Download className="w-4 h-4 mr-2" />
+               Export Config
+            </Button>
+            <Button>
+              <Save className="w-4 h-4 mr-2" />
+              Commit Changes
+            </Button>
+          </div>
+        </div>
+
+        {/* Settings Navigation */}
+        <div className="settings-tabs mb-8">
+           <Card className="p-1.5 border-none shadow-sm bg-white md:w-fit overflow-x-auto">
+              <div className="flex items-center gap-1">
+                 {tabs.map(tab => {
+                   const Icon = tab.icon
+                   return (
+                     <button
+                       key={tab.id}
+                       onClick={() => setActiveTab(tab.id)}
+                       className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                         activeTab === tab.id
+                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                           : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                       }`}
+                     >
+                       <Icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`} />
+                       <span className="whitespace-nowrap">{tab.name}</span>
+                     </button>
+                   )
+                 })}
               </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Template Name
-                  </label>
-                  <Input
-                    value={selectedTemplate?.name || ''}
-                    onChange={(e) => setSelectedTemplate(prev => prev ? { ...prev, name: e.target.value } : null)}
-                    placeholder="Enter template name"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subject
-                  </label>
-                  <Input
-                    value={selectedTemplate?.subject || ''}
-                    onChange={(e) => setSelectedTemplate(prev => prev ? { ...prev, subject: e.target.value } : null)}
-                    placeholder="Enter email subject"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Content
-                  </label>
-                  <textarea
-                    value={selectedTemplate?.content || ''}
-                    onChange={(e) => setSelectedTemplate(prev => prev ? { ...prev, content: e.target.value } : null)}
-                    placeholder="Enter email content"
-                    rows={8}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={selectedTemplate?.category || ''}
-                    onChange={(e) => setSelectedTemplate(prev => prev ? { ...prev, category: e.target.value } : null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select category</option>
-                    <option value="payment">Payment</option>
-                    <option value="allocation">Allocation</option>
-                    <option value="welcome">Welcome</option>
-                    <option value="reminder">Reminder</option>
-                  </select>
-                </div>
-                
-                {selectedTemplate && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Available Variables:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTemplate.variables.map(variable => (
-                        <Badge key={variable} variant="outline" className="text-xs">
-                          {`{${variable}}`}
-                        </Badge>
-                      ))}
+           </Card>
+        </div>
+
+        {/* Settings Panes */}
+        <div className="settings-content grid grid-cols-1 lg:grid-cols-12 gap-8">
+           <div className="lg:col-span-8 space-y-8">
+              {activeTab === 'general' && (
+                 <Card className="p-8 border-none shadow-sm bg-white">
+                    <h2 className="text-xl font-bold text-gray-900 mb-8 pb-4 border-b border-gray-100 flex items-center gap-2">
+                       <Settings className="w-5 h-5 text-blue-600" />
+                       Institution Identity
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+                          <Input value={settings.institutionName} onChange={(e) => setSettings(p => ({ ...p, institutionName: e.target.value }))} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Primary Email</label>
+                          <Input value={settings.institutionEmail} onChange={(e) => setSettings(p => ({ ...p, institutionEmail: e.target.value }))} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Phone Link</label>
+                          <Input value={settings.institutionPhone} onChange={(e) => setSettings(p => ({ ...p, institutionPhone: e.target.value }))} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Physical Address</label>
+                          <Input value={settings.institutionAddress} onChange={(e) => setSettings(p => ({ ...p, institutionAddress: e.target.value }))} />
+                       </div>
+                    </div>
+
+                    <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8 p-6 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-blue-600 uppercase tracking-widest">Active Academic Year</label>
+                          <select value={settings.academicYear} onChange={(e) => handleSettingChange('current_academic_year', e.target.value)} className="w-full px-4 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:ring-4 focus:ring-blue-100 transition-all">
+                            <option value="2023/2024">2023/2024</option>
+                            <option value="2024/2025">2024/2025</option>
+                          </select>
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-blue-600 uppercase tracking-widest">Operational Semester</label>
+                          <select value={settings.currentSemester} onChange={(e) => handleSettingChange('current_semester', e.target.value)} className="w-full px-4 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:ring-4 focus:ring-blue-100 transition-all">
+                            <option value="First Semester">First Semester</option>
+                            <option value="Second Semester">Second Semester</option>
+                          </select>
+                       </div>
+                    </div>
+                 </Card>
+              )}
+
+              {activeTab === 'acquisition' && (
+                <Card className="p-8 border-none shadow-sm bg-white">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2 font-primary">Gatekeeper Controls</h2>
+                  <p className="text-gray-500 mb-10 text-sm">Synchronize the open/close status of core acquisition channels.</p>
+
+                  <div className="space-y-6">
+                    <div className="p-6 border border-gray-100 rounded-2xl bg-gray-50/30 flex items-center justify-between group hover:border-blue-100 transition-all">
+                       <div className="flex items-center gap-6">
+                          <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                             <Building className="w-7 h-7 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900">Direct Booking Channel</h3>
+                            <p className="text-xs text-gray-500 mt-1">Students claim rooms instantly via self-service</p>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-6">
+                          <ModernBadge variant={toggles.bookingEnabled ? 'success' : 'neutral'}>{toggles.bookingEnabled ? 'Open for Business' : 'System Closed'}</ModernBadge>
+                          <button 
+                            onClick={() => handleSettingChange('booking_enabled', !toggles.bookingEnabled)}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${toggles.bookingEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+                          >
+                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${toggles.bookingEnabled ? 'left-7' : 'left-1'}`} />
+                          </button>
+                       </div>
+                    </div>
+
+                    <div className="p-6 border border-gray-100 rounded-2xl bg-gray-50/30 flex items-center justify-between group hover:border-purple-100 transition-all">
+                       <div className="flex items-center gap-6">
+                          <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                             <Calendar className="w-7 h-7 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900">Reservation Intake</h3>
+                            <p className="text-xs text-gray-500 mt-1">Intake of requests for offline admin allocation</p>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-6">
+                          <ModernBadge variant={toggles.reservationEnabled ? 'success' : 'neutral'}>{toggles.reservationEnabled ? 'Open for Requests' : 'Closed'}</ModernBadge>
+                          <button 
+                            onClick={() => handleSettingChange('reservation_enabled', !toggles.reservationEnabled)}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${toggles.reservationEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}
+                          >
+                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${toggles.reservationEnabled ? 'left-7' : 'left-1'}`} />
+                          </button>
+                       </div>
                     </div>
                   </div>
-                )}
-              </div>
-              
-              <div className="flex justify-end space-x-3 mt-6">
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setShowTemplateEditor(false)
-                    setSelectedTemplate(null)
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveTemplate}>
-                  Save Template
-                </Button>
-              </div>
-            </div>
-          </Card>
+                </Card>
+              )}
+
+              {activeTab === 'payment' && (
+                <Card className="p-8 border-none shadow-sm bg-white">
+                   <h2 className="text-xl font-bold text-gray-900 mb-8 pb-4 border-b border-gray-100 flex items-center gap-2">
+                       <CreditCard className="w-5 h-5 text-blue-600" />
+                       Ledger & Currency Rules
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Base Currency</label>
+                          <select value={settings.currency} className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-4 focus:ring-blue-100 transition-all">
+                             <option value="GHS">GHS (Ghanaian Cedi)</option>
+                             <option value="USD">USD (US Dollar)</option>
+                          </select>
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Late Fee (Daily)</label>
+                          <Input type="number" value={settings.latePaymentFee} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Automatic Reminders</label>
+                          <div className="flex items-center gap-3">
+                             <Input type="number" value={settings.paymentReminderDays} className="w-20" />
+                             <span className="text-sm font-medium text-gray-500">Days before deadline</span>
+                          </div>
+                       </div>
+                    </div>
+                </Card>
+              )}
+
+              {activeTab === 'email' && (
+                <div className="space-y-8">
+                   <Card className="p-8 border-none shadow-sm bg-white">
+                      <h2 className="text-xl font-bold text-gray-900 mb-8 pb-4 border-b border-gray-100 flex items-center gap-2">
+                         <Mail className="w-5 h-5 text-blue-600" />
+                         SMTP Delivery Nodes
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Relay Host</label>
+                            <Input value={settings.smtpHost} />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Port (SSL/TLS)</label>
+                            <Input type="number" value={settings.smtpPort} />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Auth User</label>
+                            <Input value={settings.smtpUsername} />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Auth Password</label>
+                            <Input type="password" value="********" />
+                         </div>
+                      </div>
+                      <div className="mt-8 flex justify-end">
+                         <Button variant="outline">Test Delivery Pipe</Button>
+                      </div>
+                   </Card>
+
+                   <Card className="p-8 border-none shadow-sm bg-white">
+                      <div className="flex items-center justify-between mb-8">
+                         <h2 className="text-xl font-bold text-gray-900">Communication Templates</h2>
+                         <Button size="sm"><Plus className="w-4 h-4 mr-1" /> New Template</Button>
+                      </div>
+                      <div className="space-y-4">
+                         {emailTemplates.map(t => (
+                           <div key={t.id} className="p-5 border border-gray-100 rounded-2xl hover:bg-gray-50/50 transition-all flex items-center justify-between group">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors">
+                                    <Mail className="w-5 h-5 text-gray-400" />
+                                 </div>
+                                 <div>
+                                    <div className="font-bold text-gray-900 text-sm">{t.name}</div>
+                                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{t.category}</div>
+                                 </div>
+                              </div>
+                              <Button variant="outline" size="sm">Edit Logic</Button>
+                           </div>
+                         ))}
+                      </div>
+                   </Card>
+                </div>
+              )}
+
+              {activeTab === 'security' && (
+                <Card className="p-8 border-none shadow-sm bg-white">
+                   <h2 className="text-xl font-bold text-gray-900 mb-8 pb-4 border-b border-gray-100 flex items-center gap-2">
+                       <Shield className="w-5 h-5 text-red-600" />
+                       Fortress Security Rules
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Min Password Entropy</label>
+                          <Input type="number" value={settings.passwordMinLength} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Session Heartbeat (Minutes)</label>
+                          <Input type="number" value={settings.sessionTimeout} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Brute-Force Threshold</label>
+                          <Input type="number" value={settings.maxLoginAttempts} />
+                       </div>
+                       <div className="flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100">
+                           <input type="checkbox" checked={settings.enableTwoFactorAuth} />
+                           <div>
+                              <div className="text-sm font-bold text-red-900">Enforce Multi-Factor (MFA)</div>
+                              <div className="text-[10px] text-red-600 font-medium">Require email OTP for all admin sessions</div>
+                           </div>
+                       </div>
+                    </div>
+                </Card>
+              )}
+
+              {activeTab === 'backup' && (
+                <div className="space-y-8">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <AnimatedStatCard icon={Clock} label="Last Automated Sync" value="2h ago" iconColor="blue" />
+                      <AnimatedStatCard icon={Database} label="Sync Integrity" value="100%" iconColor="green" />
+                   </div>
+                   <Card className="p-8 border-none shadow-sm bg-white">
+                      <h2 className="text-xl font-bold text-gray-900 mb-8 pb-4 border-b border-gray-100 flex items-center gap-2">
+                         <Database className="w-5 h-5 text-blue-600" />
+                         Recovery Points
+                      </h2>
+                      <div className="space-y-4">
+                         <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                               <RefreshCw className="w-4 h-4 text-green-500" />
+                               <span className="text-sm font-bold">Daily_Snapshot_20241225.sql</span>
+                            </div>
+                            <Button size="sm" variant="outline">Restore Node</Button>
+                         </div>
+                      </div>
+                      <div className="mt-8 pt-6 border-t border-gray-100">
+                         <Button className="w-full">Initiate Force Backup Now</Button>
+                      </div>
+                   </Card>
+                </div>
+              )}
+           </div>
+
+           <div className="lg:col-span-4 space-y-6">
+              <Card className="p-6 border-none shadow-sm bg-white overflow-hidden relative">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-bl-full -mr-16 -mt-16" />
+                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    Quick Insights
+                 </h3>
+                 <div className="space-y-6 relative z-10">
+                    <div className="flex justify-between items-center text-xs">
+                       <span className="text-gray-500 font-medium">Current Load</span>
+                       <span className="font-bold text-green-600 text-sm">Optimal</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                       <span className="text-gray-500 font-medium">Core API Version</span>
+                       <span className="font-bold text-gray-900 text-sm">v4.2.0-stable</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                       <span className="text-gray-500 font-medium">Storage Usage</span>
+                       <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900 text-sm">12%</span>
+                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                             <div className="h-full bg-blue-600" style={{ width: '12%' }} />
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+              </Card>
+
+              <Card className="p-6 border-none shadow-sm bg-white">
+                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-purple-600" />
+                    System Alerts
+                 </h3>
+                 <div className="space-y-4">
+                    <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl">
+                       <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">Update Available</div>
+                       <p className="text-[11px] text-blue-900 leading-relaxed font-medium">New security patches are available for the database engine. Plan a 5-min downtime.</p>
+                    </div>
+                    <div className="p-3 bg-yellow-50/50 border border-yellow-100 rounded-xl">
+                       <div className="text-[10px] font-bold text-yellow-600 uppercase mb-1">Disk Info</div>
+                       <p className="text-[11px] text-yellow-900 leading-relaxed font-medium">Log rotation successful. Archive older than 90 days have been cleared.</p>
+                    </div>
+                 </div>
+              </Card>
+           </div>
         </div>
-      )}
+      </main>
     </div>
   )
 }

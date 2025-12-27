@@ -1,14 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { RootState } from '@/store'
 import { fetchNotifications } from '@/store/slices/notificationSlice'
+import { fetchProfile } from '@/store/slices/authSlice'
 import { formatIndexNumber } from '@/lib/formatters'
 import Card from '@/components/ui/card'
 import Button from '@/components/ui/button'
+import AnimatedStatCard from '@/components/admin/AnimatedStatCard'
+import ModernBadge from '@/components/admin/ModernBadge'
+import EmptyState from '@/components/admin/EmptyState'
 import { Users, Bed, CreditCard, Calendar, TrendingUp, AlertCircle, CheckCircle, Eye, Edit, Trash2, Plus } from 'lucide-react'
+import { initPageAnimations } from '@/lib/animations'
 
 interface DashboardStats {
   totalStudents: number
@@ -49,6 +54,8 @@ export default function AdminDashboard() {
   const { user } = useSelector((state: RootState) => state.auth)
   const router = useRouter()
 
+  const dispatch = useDispatch()
+
   useEffect(() => {
     if (!user || user.role !== 'admin') {
       router.push('/login')
@@ -59,6 +66,9 @@ export default function AdminDashboard() {
       try {
         setIsLoading(true)
         
+        // Fetch latest profile data
+        await dispatch(fetchProfile() as any)
+
         // Fetch stats
         const statsRes = await fetch('/api/admin/stats')
         const statsData = await statsRes.json()
@@ -82,7 +92,13 @@ export default function AdminDashboard() {
     }
 
     fetchDashboardData()
-  }, [user, router])
+  }, [router, dispatch])
+
+  useEffect(() => {
+    if (!isLoading) {
+      initPageAnimations(200)
+    }
+  }, [isLoading])
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -99,20 +115,17 @@ export default function AdminDashboard() {
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'danger' | 'neutral' => {
     switch (status) {
       case 'allocated':
-        return 'bg-green-100 text-green-800'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'none':
-        return 'bg-gray-100 text-gray-800'
       case 'paid':
-        return 'bg-green-100 text-green-800'
+        return 'success'
+      case 'pending':
+        return 'warning'
       case 'overdue':
-        return 'bg-red-100 text-red-800'
+        return 'danger'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'neutral'
     }
   }
 
@@ -126,124 +139,123 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
-        
       <main className="flex-1 p-6">
-          <div className="mb-8">
-            <h1 className="text-responsive-3xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-responsive-base text-gray-600 mt-2">Welcome back, {user?.firstName}</p>
-          </div>
+        {/* Page Header */}
+        <div className="page-header mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="text-gray-600 mt-2">Welcome back, {user?.firstName}</p>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Users className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-responsive-sm font-medium text-gray-600">Total Students</p>
-                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.totalStudents}</p>
-                </div>
-              </div>
-            </Card>
+        {/* Stats Cards */}
+        <div className="stats-cards grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <AnimatedStatCard
+            icon={Users}
+            label="Total Students"
+            value={stats?.totalStudents || 0}
+            iconColor="blue"
+          />
 
-            <Card className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <Bed className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-responsive-sm font-medium text-gray-600">Occupancy Rate</p>
-                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.occupancyRate}%</p>
-                </div>
-              </div>
-            </Card>
+          <AnimatedStatCard
+            icon={Bed}
+            label="Occupancy Rate"
+            value={`${stats?.occupancyRate || 0}%`}
+            iconColor="green"
+          />
 
-            <Card className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <CreditCard className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-responsive-sm font-medium text-gray-600">Pending Payments</p>
-                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.pendingPayments}</p>
-                </div>
-              </div>
-            </Card>
+          <AnimatedStatCard
+            icon={CreditCard}
+            label="Pending Payments"
+            value={stats?.pendingPayments || 0}
+            iconColor="yellow"
+          />
 
-            <Card className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <Calendar className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-responsive-sm font-medium text-gray-600">Pending Applications</p>
-                  <p className="text-responsive-2xl font-bold text-gray-900">{stats?.pendingApplications}</p>
-                </div>
-              </div>
-            </Card>
-          </div>
+          <AnimatedStatCard
+            icon={Calendar}
+            label="Pending Applications"
+            value={stats?.pendingApplications || 0}
+            iconColor="purple"
+          />
+        </div>
 
-          {/* Recent Activities & Students */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-responsive-lg font-semibold text-gray-900">Recent Activities</h2>
-                <Button variant="outline" size="sm">
-                  <Eye className="h-4 w-4 mr-1" />
-                  View All
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {stats?.recentActivities.map((activity) => (
+        {/* Recent Activities & Students */}
+        <div className="content-section grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Activities */}
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Recent Activities</h2>
+              <Button variant="outline" size="sm">
+                <Eye className="h-4 w-4 mr-1" />
+                View All
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {stats?.recentActivities && stats.recentActivities.length > 0 ? (
+                stats.recentActivities.map((activity) => (
                   <div key={activity.id} className="flex items-start space-x-3">
                     {getActivityIcon(activity.type)}
                     <div className="flex-1">
-                      <p className="text-responsive-sm text-gray-900 line-clamp-2">{activity.description}</p>
-                      <p className="text-responsive-xs text-gray-500">
+                      <p className="text-sm text-gray-900 line-clamp-2">{activity.description}</p>
+                      <p className="text-xs text-gray-500">
                         {new Date(activity.timestamp).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </Card>
+                ))
+              ) : (
+                <EmptyState
+                  icon={AlertCircle}
+                  title="No Recent Activities"
+                  description="Activity will appear here as actions are taken in the system."
+                />
+              )}
+            </div>
+          </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-responsive-lg font-semibold text-gray-900">Recent Students</h2>
-                <Button variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Student
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {recentStudents.map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg overflow-hidden">
+          {/* Recent Students */}
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Recent Students</h2>
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Add Student
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {recentStudents && recentStudents.length > 0 ? (
+                recentStudents.map((student) => (
+                  <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate">
                         {student.firstName} {student.lastName}
                       </p>
-                      <p className="text-responsive-sm text-gray-500 truncate">{formatIndexNumber(student.indexNumber)}</p>
-                      <p className="text-responsive-xs text-gray-400 truncate">{student.email}</p>
+                      <p className="text-sm text-gray-500 truncate">{formatIndexNumber(student.indexNumber)}</p>
+                      <p className="text-xs text-gray-400 truncate">{student.email}</p>
                     </div>
                     <div className="text-right ml-2 flex-shrink-0">
-                      <span className={`inline-flex px-2 py-1 text-responsive-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 ${getStatusColor(student.accommodationStatus)}`}>
+                      <ModernBadge variant={getStatusBadgeVariant(student.accommodationStatus)}>
                         {student.accommodationStatus}
-                      </span>
+                      </ModernBadge>
                       {student.room && (
-                        <p className="text-responsive-xs text-gray-500 mt-1 truncate">
+                        <p className="text-xs text-gray-500 mt-1 truncate">
                           {student.room.hostel} - {student.room.roomNumber}
                         </p>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        </main>
+                ))
+              ) : (
+                <EmptyState
+                  icon={Users}
+                  title="No Students Yet"
+                  description="Students will appear here once they are added to the system."
+                  actionLabel="Add Student"
+                  onAction={() => router.push('/admin/students')}
+                />
+              )}
+            </div>
+          </Card>
+        </div>
+      </main>
     </div>
   )
 }

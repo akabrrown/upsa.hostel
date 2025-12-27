@@ -45,10 +45,17 @@ export default function LoginPage() {
         
         let response
         if (isStudent) {
-          // Student authentication with index number + DOB
+          // Student authentication
+          // Option B: Only strip dashes if it looks like a date (YYYY-MM-DD)
+          // Otherwise preserve the password as-is (for custom passwords)
+          const isDatePassword = /^\d{4}-\d{2}-\d{2}$/.test(values.password)
+          const passwordToSend = isDatePassword 
+            ? values.password.replace(/-/g, '') 
+            : values.password
+
           response = await authApi.login({
             email: `${cleanIdentifier}@upsamail.edu.gh`,
-            password: values.password ? values.password.replace(/-/g, '') : '',
+            password: passwordToSend,
             role: 'student'
           }) as { error?: string; user?: any; session?: any }
         } else {
@@ -125,6 +132,8 @@ export default function LoginPage() {
               alt="UPSA Logo" 
               width={150}
               height={40}
+              priority
+              style={{ height: 'auto' }}
               className="object-contain"
             />
           </div>
@@ -162,17 +171,18 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              {/^(UPSA)?\d{8}$/i.test(formik.values.identifier) ? 'Date of Birth' : 'Password'}
+              Password
             </label>
             <input
               id="password"
               name="password"
-              type={/^(UPSA)?\d{8}$/i.test(formik.values.identifier) ? 'date' : 'password'}
+              type="password"
+              autoComplete="current-password"
               value={formik.values.password}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               className="input-field"
-              placeholder={/^(UPSA)?\d{8}$/i.test(formik.values.identifier) ? 'YYYY-MM-DD' : 'Enter your password'}
+              placeholder="Enter your password"
             />
             {formik.touched.password && formik.errors.password && (
               <div className="text-red-500 text-sm mt-1">{formik.errors.password}</div>
@@ -181,10 +191,7 @@ export default function LoginPage() {
 
           <div className="text-sm text-gray-600">
             <p className="mb-2">
-              <strong>Students:</strong> Enter your 8-digit index number and date of birth
-            </p>
-            <p>
-              <strong>Staff:</strong> Enter your email address and password
+              <strong>Students:</strong> Enter your 8-digit index number and date of birth (e.g. YYYY-MM-DD)
             </p>
           </div>
 
